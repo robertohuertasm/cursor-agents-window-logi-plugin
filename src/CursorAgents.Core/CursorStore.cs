@@ -17,6 +17,8 @@ public interface ISessionStore
 public sealed class CursorStore : ISessionStore, IDisposable
 {
     private const int MaxSessions = 60;
+    private const int CopyAttempts = 4;
+    private static readonly TimeSpan CopyRetryDelay = TimeSpan.FromMilliseconds(150);
     private readonly string sourceDir;
     private readonly string copyDir;
     private readonly object gate = new();
@@ -73,13 +75,33 @@ public sealed class CursorStore : ISessionStore, IDisposable
         Directory.CreateDirectory(this.copyDir);
         var source = Path.Combine(this.sourceDir, "state.vscdb");
         var copy = Path.Combine(this.copyDir, "state.vscdb");
-        File.Copy(source, copy, overwrite: true);
-        if (File.Exists(source + "-wal")) File.Copy(source + "-wal", copy + "-wal", overwrite: true);
-        else File.Delete(copy + "-wal");
+        // Cursor may hold its files briefly while it writes; a short retry avoids a false "offline".
+        Retry(() =>
+        {
+            File.Copy(source, copy, overwrite: true);
+            if (File.Exists(source + "-wal")) File.Copy(source + "-wal", copy + "-wal", overwrite: true);
+            else File.Delete(copy + "-wal");
+        });
         // SQLite rebuilds the shared-memory index from the WAL; Cursor's live one could
         // describe a different WAL than the one copied.
         File.Delete(copy + "-shm");
         return copy;
+    }
+
+    private static void Retry(Action action)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                action();
+                return;
+            }
+            catch (IOException) when (attempt < CopyAttempts)
+            {
+                Thread.Sleep(CopyRetryDelay);
+            }
+        }
     }
 
     private static SqliteConnection Open(string path)

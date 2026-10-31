@@ -9,6 +9,8 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
     private readonly Func<DateTimeOffset> now = clock ?? (() => DateTimeOffset.UtcNow);
     private string signature = "";
     private Dictionary<string, KeyState> lastStates = [];
+    private StoreSnapshot? lastSnapshot;
+    private int failures;
 
     public IReadOnlyList<Session> Ranked { get; private set; } = [];
 
@@ -44,6 +46,17 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
         return true;
     }
 
+    public enum FailureAction
+    {
+        KeepLast,
+        Offline,
+    }
+
+    // One unreadable tick is usually Cursor writing its files, so the last state is kept
+    // for a couple of ticks before the keys say offline.
+    public static FailureAction OnReadFailure(int failures, bool wasOnline) =>
+        wasOnline && failures < 3 ? FailureAction.KeepLast : FailureAction.Offline;
+
     public async Task RunAsync(CancellationToken cancel)
     {
         var first = true;
@@ -55,6 +68,7 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
                 if (cursorRunning())
                 {
                     snapshot = store.Read();
+                    failures = 0;
                     if (!this.Online && !first) Log.Info("Cursor is running and its database is readable again");
                 }
                 else if (this.Online || first)
@@ -64,8 +78,17 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
             }
             catch (Exception e)
             {
-                if (this.Online || first) Log.Warning($"could not read Cursor's database, keys show offline: {e.GetType().Name}: {e.Message}");
+                failures++;
+                if (OnReadFailure(failures, this.Online) == FailureAction.KeepLast)
+                {
+                    snapshot = this.lastSnapshot;
+                }
+                else if (this.Online || first)
+                {
+                    Log.Warning($"could not read Cursor's database, keys show offline: {e.GetType().Name}: {e.Message}");
+                }
             }
+            this.lastSnapshot = snapshot;
 
             // The service keeps faces from an earlier run, so the first poll always redraws.
             if (this.Apply(snapshot) || first) this.Changed?.Invoke();

@@ -140,6 +140,15 @@ public class BoardTests
     }
 
     [Fact]
+    public void One_failed_read_keeps_last_state_then_goes_offline()
+    {
+        Assert.Equal(SessionBoard.FailureAction.KeepLast, SessionBoard.OnReadFailure(failures: 1, wasOnline: true));
+        Assert.Equal(SessionBoard.FailureAction.KeepLast, SessionBoard.OnReadFailure(failures: 2, wasOnline: true));
+        Assert.Equal(SessionBoard.FailureAction.Offline, SessionBoard.OnReadFailure(failures: 3, wasOnline: true));
+        Assert.Equal(SessionBoard.FailureAction.Offline, SessionBoard.OnReadFailure(failures: 1, wasOnline: false));
+    }
+
+    [Fact]
     public void Offline_clears_keys()
     {
         var board = new SessionBoard(new FakeStore(() => throw new IOException()), () => false);
