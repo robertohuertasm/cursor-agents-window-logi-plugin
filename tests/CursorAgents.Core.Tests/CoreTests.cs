@@ -66,7 +66,7 @@ public class StateRulesTests
         var s = StateRules.ToSession(Row(name: "  ", path: "/Users/me/src/app/"), Now);
         Assert.Equal("app", s.WorkspaceName);
         Assert.Equal("/Users/me/src/app", s.WorkspaceKey);
-        Assert.Equal("New agent", s.Title);
+        Assert.Equal("app", s.Title);
         Assert.Equal("No folder", StateRules.ToSession(Row(path: null), Now).WorkspaceName);
     }
 }

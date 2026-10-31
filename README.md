@@ -14,6 +14,8 @@ Drag these onto keys in Logi Options+ (group **Cursor Agents Window**):
 | **New agent** | Brings up the Agents window and presses its New Agent shortcut (Cmd+N). While Cursor is not running the key reads **Start Cursor** (▶) and a press starts it. |
 | **Agents window** (folder) | **New** and one key per project folder, as the Agents window groups agents, with a badge for the number of agents. A press opens the folder's agents (a folder with one agent opens it directly). Inside, **Back**, then one key per agent: a press opens it, a long press asks **Archive?**. |
 
+An agent with no name yet (its first message has not been sent) shows its folder's name, since Cursor sets the name with the first message.
+
 Key colors: red waiting for input, amber working, blue finished but not looked at yet, green outline idle, grey dotted empty, dark red dotted Cursor not running.
 
 ## How it works

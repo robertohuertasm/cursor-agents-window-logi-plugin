@@ -59,7 +59,7 @@ public static class StateRules
         var name = string.IsNullOrEmpty(path) ? "No folder" : Path.GetFileName(path.Replace('\\', '/'));
         return new Session(
             row.Id,
-            string.IsNullOrWhiteSpace(row.Name) ? "New agent" : row.Name.Trim(),
+            string.IsNullOrWhiteSpace(row.Name) ? name : row.Name.Trim(),
             path ?? "",
             name,
             Infer(row, now),
