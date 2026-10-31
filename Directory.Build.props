@@ -5,5 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ManifestPath>$(MSBuildThisFileDirectory)package/metadata/LoupedeckPackage.yaml</ManifestPath>
+    <Version Condition="Exists('$(ManifestPath)')">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(ManifestPath)')), '(?m)^version:\s*(\S+)').Groups[1].Value)</Version>
   </PropertyGroup>
 </Project>

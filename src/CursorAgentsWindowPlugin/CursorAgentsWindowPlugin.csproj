@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Loupedeck.CursorAgentsWindowPlugin</RootNamespace>
+    <AssemblyName>CursorAgentsWindowPlugin</AssemblyName>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- The package root: the manifest and icons from package/, the assemblies in bin/. -->
+    <PackageDir>$(MSBuildThisFileDirectory)../../build/$(Configuration)/</PackageDir>
+    <OutputPath>$(PackageDir)bin/</OutputPath>
+    <PluginDir Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/Logi/LogiPluginService/Plugins/</PluginDir>
+    <PluginDir Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(LOCALAPPDATA)\Logi\LogiPluginService\Plugins\</PluginDir>
+    <PluginName>CursorAgentsWindow</PluginName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Compile-time only: the Plugin Service supplies PluginApi and its dependencies. -->
+    <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" ExcludeAssets="runtime;native" />
+    <ProjectReference Include="../CursorAgents.Core/CursorAgents.Core.csproj" />
+  </ItemGroup>
+
+  <!-- LogiPluginApi brings StyleCop and pinned analyzers that enforce Logitech's style. -->
+  <Target Name="DropPluginApiAnalyzers" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="$([System.String]::Copy('%(Analyzer.Identity)').Contains('/.nuget/packages/'))" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyPackage" AfterTargets="Build">
+    <ItemGroup>
+      <PackageFiles Include="$(MSBuildThisFileDirectory)../../package/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(PackageDir)%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- A Debug build links the build into the Plugin Service and reloads it. -->
+  <Target Name="LinkPlugin" AfterTargets="CopyPackage"
+          Condition="'$(Configuration)' == 'Debug' and '$(PluginDir)' != '' and '$(CI)' != 'true'">
+    <WriteLinesToFile File="$(PluginDir)$(PluginName).link" Lines="$([System.IO.Path]::GetFullPath('$(PackageDir)'))" Overwrite="true" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('OSX'))" Command="open loupedeck:plugin/$(PluginName)/reload" ContinueOnError="true" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))" Command="start loupedeck:plugin/$(PluginName)/reload" ContinueOnError="true" />
+    <Message Text="Linked $(PluginDir)$(PluginName).link and asked the Plugin Service to reload $(PluginName)" Importance="High" />
+  </Target>
+
+  <Target Name="UnlinkPlugin" AfterTargets="Clean" Condition="'$(PluginDir)' != ''">
+    <Delete Files="$(PluginDir)$(PluginName).link" />
+  </Target>
+
+</Project>

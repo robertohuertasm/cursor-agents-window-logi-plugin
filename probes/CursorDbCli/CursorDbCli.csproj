@@ -1,13 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Throwaway console probe: same reader as CursorDbProbe, outside Logi Plugin Service. -->
+  <!-- Console probe: polls Cursor's database with the plugin's core and prints state changes. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../Shared/*.cs" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <ProjectReference Include="../../src/CursorAgents.Core/CursorAgents.Core.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,30 @@
+# Plugin manifest: https://logitech.github.io/actions-sdk-docs/
+type: plugin4
+
+# Immutable identifier. Also names the log file (CursorAgentsWindow.log) and the reload
+# deep link (loupedeck://plugin/CursorAgentsWindow/reload). Distinct from AgentsWindow (VS Code) and Herdr.
+name: CursorAgentsWindow
+displayName: Cursor Agents Window
+description: Live status keys for Cursor Agents window agents, one-press focus, and a folder to browse agents by folder.
+
+# The only version number: the build reads it from here.
+version: 0.1.0
+
+author: Roberto Huertas
+copyright: Copyright © 2026 Roberto Huertas
+# LogiPluginApi 6.4 targets .NET 10, which the Plugin Service runs from 6.4.
+minimumLoupedeckVersion: 6.4
+
+pluginFileName: CursorAgentsWindowPlugin.dll
+
+# macOS is tested. Windows paths are written but untested.
+pluginFolderMac: bin
+pluginFolderWin: bin
+
+supportedDevices:
+    - MxCreativeKeypad
+    - LoupedeckCtFamily
+
+pluginCapabilities:
+
+license: MIT
