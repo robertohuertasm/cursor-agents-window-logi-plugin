@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Throwaway plugin: checks that Microsoft.Data.Sqlite loads inside Logi Plugin Service and can read
+       Cursor's state database while Cursor writes to it. Registers no actions and logs state fields only. -->
+  <PropertyGroup>
+    <RootNamespace>Loupedeck.CursorDbProbePlugin</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PackageDir>$(MSBuildThisFileDirectory)build/$(Configuration)/</PackageDir>
+    <OutputPath>$(PackageDir)bin/</OutputPath>
+    <PluginDir>$(HOME)/Library/Application Support/Logi/LogiPluginService/Plugins/</PluginDir>
+    <PluginName>CursorDbProbe</PluginName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Shared/*.cs" />
+    <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" ExcludeAssets="runtime;native" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+  </ItemGroup>
+
+  <Target Name="DropPluginApiAnalyzers" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="$([System.String]::Copy('%(Analyzer.Identity)').Contains('/.nuget/packages/'))" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyPackage" AfterTargets="Build">
+    <ItemGroup>
+      <PackageFiles Include="$(MSBuildThisFileDirectory)package/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(PackageDir)%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="LinkPlugin" AfterTargets="CopyPackage" Condition="'$(Configuration)' == 'Debug' and '$(Link)' == 'true'">
+    <WriteLinesToFile File="$(PluginDir)$(PluginName).link" Lines="$([System.IO.Path]::GetFullPath('$(PackageDir)'))" Overwrite="true" />
+    <Exec Command="open loupedeck:plugin/$(PluginName)/reload" ContinueOnError="true" />
+  </Target>
+
+</Project>

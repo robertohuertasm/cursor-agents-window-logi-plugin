@@ -1,0 +1,14 @@
+type: plugin4
+name: CursorDbProbe
+displayName: Cursor DB Probe
+description: Throwaway probe. Checks that Cursor's agent state database can be read inside Logi Plugin Service. Registers no actions.
+version: 0.0.1
+author: Roberto Huertas
+copyright: Copyright © 2026 Roberto Huertas
+minimumLoupedeckVersion: 6.4
+pluginFileName: CursorDbProbe.dll
+pluginFolderMac: bin
+supportedDevices:
+    - MxCreativeKeypad
+pluginCapabilities:
+license: MIT
