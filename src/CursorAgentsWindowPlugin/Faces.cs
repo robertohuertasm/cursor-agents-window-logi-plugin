@@ -5,7 +5,7 @@ using CursorAgents;
 // Draws key faces above the label row Options+ reserves.
 internal static class Faces
 {
-    // The black Cursor logo on a disc colored by state. The Plugin Service only lets a
+    // The white Cursor logo on a disc colored by state. The Plugin Service only lets a
     // plugin draw the image square above the label row, so a colored disc on black blends
     // in where a colored key background would show as a patch. `count` > 1 adds a badge
     // with the number of chats, so keys that open a chat list look different.
@@ -15,11 +15,12 @@ internal static class Faces
         using var b = new BitmapBuilder(size);
         b.Clear(BitmapColor.Black);
         var cx = b.Width / 2f;
-        var cy = b.Height * 0.4f;
+        // A little below the VS Code plugin's 0.4, which the user preferred for Cursor's logo.
+        var cy = b.Height * 0.45f;
         var r = Math.Min(b.Width, b.Height) * 0.3f;
         b.FillCircle(cx, cy, r, new BitmapColor(rgb.R, rgb.G, rgb.B));
         var side = (int)(Math.Min(b.Width, b.Height) * 0.44f);
-        if (Codicon("cursor", new Rgb(0, 0, 0)) is { } image)
+        if (Codicon("cursor", new Rgb(255, 255, 255)) is { } image)
         {
             b.DrawImage(image, (int)(cx - side / 2f), (int)(cy - side / 2f), side, side, BitmapRotation.None);
         }
