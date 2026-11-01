@@ -79,8 +79,8 @@ public sealed class RecentChatCommand : PluginDynamicCommand
     protected override BitmapImage GetCommandImage(string actionParameter, PluginImageSize imageSize)
     {
         if (this.armed is not null) return Faces.Glyph("?", imageSize, new BitmapColor(200, 30, 30));
-        if (!this.Board.Online) return Faces.Ring(KeyState.Offline, imageSize);
-        return Faces.Ring(this.Current?.Chat.State ?? KeyState.None, imageSize);
+        if (!this.Board.Online) return Faces.State(KeyState.Offline, imageSize);
+        return Faces.State(this.Current?.Chat.State ?? KeyState.None, imageSize);
     }
 
     protected override string GetCommandDisplayName(string actionParameter, PluginImageSize imageSize)

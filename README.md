@@ -18,7 +18,7 @@ Drag these onto keys in Logi Options+ (group **Cursor Agents Window**):
 
 An agent with no name yet (its first message has not been sent) shows its folder's name, since Cursor sets the name with the first message.
 
-Key colors: red waiting for input, amber working, blue finished but not looked at yet, green outline idle, grey dotted empty, dark red dotted Cursor not running.
+Keys show Cursor's logo in black on a disc colored by state, as the VS Code plugin does: red waiting for input, amber working, blue finished but not looked at yet, green idle, dark red Cursor not running, dark grey empty.
 
 ## How it works
 
@@ -37,7 +37,7 @@ Research notes and decisions live in [robertohuertasm/agent-skills, `labs/projec
 
 - `src/CursorAgents.Core`: everything that does not need the Logi API (database reader, state rules, ranking, links, shortcut sequencing). Tested directly.
 - `src/CursorAgentsWindowPlugin`: the Logi plugin (actions, folders, key faces). The Plugin Service only loads it when the plugin class is named after the manifest's `name` (`CursorAgentsWindow` → `CursorAgentsWindowPlugin`).
-- `src/CursorAgentsWindowPlugin/Icons`: [codicons](https://github.com/microsoft/vscode-codicons) (CC BY 4.0) for the shortcut keys.
+- `src/CursorAgentsWindowPlugin/Icons`: [codicons](https://github.com/microsoft/vscode-codicons) (CC BY 4.0) for the shortcut keys, and `cursor.svg`, Cursor's logo as Cursor 3.27 draws it in its own layout icons.
 - `package/metadata/Icon256x256.png`: the plugin icon, Cursor's app icon.
 - `tests/CursorAgents.Core.Tests`: xUnit tests for the core, including a reader test against a database with Cursor's table layout.
 - `package/metadata/LoupedeckPackage.yaml`: plugin manifest and the only version number.

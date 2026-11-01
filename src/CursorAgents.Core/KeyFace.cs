@@ -2,13 +2,6 @@ using System.Text;
 
 namespace CursorAgents;
 
-public enum RingStyle
-{
-    Filled,
-    Outline,
-    Dotted,
-}
-
 public readonly record struct Rgb(byte R, byte G, byte B);
 
 // What a key looks like, independent of the Logi drawing API. Same colors as the VS Code plugin.
@@ -20,14 +13,15 @@ public static class KeyFace
     // unused slot answers with a zero-width space.
     public const string Blank = "\u200B";
 
-    public static (Rgb Color, RingStyle Style) For(KeyState state) => state switch
+    // The disc color behind the black Cursor logo, as in the VS Code plugin.
+    public static Rgb For(KeyState state) => state switch
     {
-        KeyState.InputNeeded => (new Rgb(230, 40, 40), RingStyle.Filled),
-        KeyState.Working => (new Rgb(240, 180, 0), RingStyle.Filled),
-        KeyState.Unread => (new Rgb(110, 160, 230), RingStyle.Filled),
-        KeyState.Idle => (new Rgb(0, 160, 64), RingStyle.Outline),
-        KeyState.Offline => (new Rgb(140, 50, 50), RingStyle.Dotted),
-        _ => (new Rgb(70, 70, 70), RingStyle.Dotted),
+        KeyState.InputNeeded => new Rgb(230, 40, 40),
+        KeyState.Working => new Rgb(240, 180, 0),
+        KeyState.Unread => new Rgb(110, 160, 230),
+        KeyState.Idle => new Rgb(0, 160, 64),
+        KeyState.Offline => new Rgb(140, 50, 50),
+        _ => new Rgb(45, 45, 45),
     };
 
     // Truncates by code point so emoji survive.
