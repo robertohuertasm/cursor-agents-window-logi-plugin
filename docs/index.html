@@ -17,7 +17,7 @@ img{max-width:100%;height:auto;display:block;margin:20px auto;border-radius:14px
 table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden}
 th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600}
 td:first-child{white-space:nowrap;font-weight:600}kbd{font:600 15px ui-monospace,Menlo,monospace;background:#24262a;border:1px solid var(--line);border-radius:6px;padding:2px 7px}
-ol li{margin:6px 0}.video{aspect-ratio:16/9;background:var(--card);border:1px dashed var(--line);border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+ol li{margin:6px 0}.video{display:block;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.24)}
 .note{color:var(--muted);font-size:.95rem}footer{margin-top:80px;color:var(--muted);font-size:.9rem;text-align:center}
 </style></head>
 <body><main>
@@ -25,7 +25,7 @@ ol li{margin:6px 0}.video{aspect-ratio:16/9;background:var(--card);border:1px da
 <a class="btn" href="https://github.com/robertohuertasm/cursor-agents-window-logi-plugin/releases/latest">Download CursorAgentsWindow.lplug4</a><a class="btn alt" href="https://github.com/robertohuertasm/cursor-agents-window-logi-plugin">Source on GitHub</a>
 <img src="images/keypad.png" alt="Nine Keypad keys colored by agent state"></header>
 
-<section><h2>Demo</h2><div class="video">Video coming soon</div></section>
+<section><h2>Demo</h2><video class="video" controls preload="metadata" playsinline poster="images/demo-poster.jpg" aria-label="Cursor Agents Window product demo"><source src="videos/demo.mp4" type="video/mp4">Your browser does not support HTML video. <a href="videos/demo.mp4">Download the demo</a>.</video></section>
 
 <section><h2>Key colors</h2><img src="images/tile-states.png" alt="Key faces for each state">
 <table><tr><th>Color</th><th>Meaning</th></tr><tr><td>Red</td><td>Waiting for you: a command approval or a question.</td></tr><tr><td>Amber</td><td>Working.</td></tr><tr><td>Blue</td><td>Finished, not looked at yet.</td></tr><tr><td>Green</td><td>Idle.</td></tr><tr><td>Dark red</td><td>Cursor is not running.</td></tr><tr><td>Dark grey</td><td>Empty slot.</td></tr></table>
