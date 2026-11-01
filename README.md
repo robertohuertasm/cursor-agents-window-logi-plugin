@@ -12,7 +12,7 @@ Drag these onto keys in Logi Options+ (group **Cursor Agents Window**):
 |---|---|
 | **Recent agent 1…9** | The Nth agent across all folders: waiting for input first, then finished but unread, then working, then idle, most recent first within each. Press opens it in the Agents window. A long press asks **Archive?** and a press within 3 seconds archives it. |
 | **New agent** | Brings up the Agents window and presses its New Agent shortcut (Cmd+N). While Cursor is not running the key reads **Start Cursor** (▶) and a press starts it. |
-| **Agents window** (folder) | **New** and one key per project folder, as the Agents window groups agents, with a badge for the number of agents. A press opens the folder's agents (a folder with one agent opens it directly). Inside, **Back**, then one key per agent: a press opens it, a long press asks **Archive?**. |
+| **Agents window** (folder) | **New** and one key per project folder, as the Agents window groups agents, with a badge for the number of agents. A press opens the folder's agents. Inside, **Back**, then one key per agent: a press opens it, a long press asks **Archive?**. |
 
 An agent with no name yet (its first message has not been sent) shows its folder's name, since Cursor sets the name with the first message.
 

@@ -192,8 +192,7 @@ public sealed class AgentsFolder : PluginDynamicFolder
         }
         else if (actionParameter.StartsWith(WorkspacePrefix, StringComparison.Ordinal) && this.Board.FindWorkspace(Payload(actionParameter, WorkspacePrefix)) is { } workspace)
         {
-            if (workspace.Sessions.Count == 1) Opener.Open(Links.OpenAgent(workspace.Sessions[0].Id));
-            else this.OpenLevel(workspace.Key);
+            this.OpenLevel(workspace.Key);
         }
         else if (actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal) && this.Board.Find(Payload(actionParameter, AgentPrefix)) is { } session)
         {
