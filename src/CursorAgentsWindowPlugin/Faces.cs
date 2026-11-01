@@ -16,7 +16,7 @@ internal static class Faces
         b.Clear(BitmapColor.Black);
         var cx = b.Width / 2f;
         // Lower than the VS Code plugin's 0.4, as the user preferred for Cursor's logo.
-        var cy = b.Height * 0.5f;
+        var cy = b.Height * 0.55f;
         var r = Math.Min(b.Width, b.Height) * 0.3f;
         b.FillCircle(cx, cy, r, new BitmapColor(rgb.R, rgb.G, rgb.B));
         var side = (int)(Math.Min(b.Width, b.Height) * 0.44f);
