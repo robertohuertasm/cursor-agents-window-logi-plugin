@@ -36,9 +36,9 @@ Research notes and decisions live in [robertohuertasm/agent-skills, `labs/projec
 ## Layout
 
 - `src/CursorAgents.Core`: everything that does not need the Logi API (database reader, state rules, ranking, links, shortcut sequencing). Tested directly.
-- `src/CursorAgentsWindowPlugin`: the Logi plugin (actions, folders, key faces).
+- `src/CursorAgentsWindowPlugin`: the Logi plugin (actions, folders, key faces). The Plugin Service only loads it when the plugin class is named after the manifest's `name` (`CursorAgentsWindow` → `CursorAgentsWindowPlugin`).
 - `src/CursorAgentsWindowPlugin/Icons`: [codicons](https://github.com/microsoft/vscode-codicons) (CC BY 4.0) for the shortcut keys.
-- `package/metadata/Icon256x256.png`: the plugin icon, Cursor's app icon. The Plugin Service only loads it when the plugin class is named after the manifest's `name` (`CursorAgentsWindow` → `CursorAgentsWindowPlugin`).
+- `package/metadata/Icon256x256.png`: the plugin icon, Cursor's app icon.
 - `tests/CursorAgents.Core.Tests`: xUnit tests for the core, including a reader test against a database with Cursor's table layout.
 - `package/metadata/LoupedeckPackage.yaml`: plugin manifest and the only version number.
 - `probes/CursorDbCli`: prints the ranked agents (short ids and folder names only) as they change.
