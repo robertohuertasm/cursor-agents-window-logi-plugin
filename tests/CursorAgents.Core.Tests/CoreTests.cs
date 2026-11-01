@@ -183,6 +183,72 @@ public class BoardTests
     }
 }
 
+public class AgentActionsTests
+{
+    private sealed class SelectionStore : ISessionStore
+    {
+        public string? Selected { get; set; }
+
+        public StoreSnapshot Read() => new([], this.Selected);
+
+        public string? ReadSelectedAgent() => this.Selected;
+    }
+
+    [Fact]
+    public async Task Switching_inside_the_selected_group_goes_through_another_agent()
+    {
+        var store = new SelectionStore { Selected = "main" };
+        var opened = new List<string>();
+        var actions = new AgentActions(store, link =>
+        {
+            opened.Add(link);
+            store.Selected = link.EndsWith("other") ? "other" : "main";
+        }, _ => { }, () => true);
+
+        await actions.OpenChatAsync("main", "side", "other", CancellationToken.None);
+
+        Assert.Equal([Links.OpenAgent("other"), Links.OpenAgent("side")], opened);
+    }
+
+    [Fact]
+    public async Task Opening_from_another_group_uses_one_link()
+    {
+        var store = new SelectionStore { Selected = "elsewhere" };
+        var opened = new List<string>();
+        var actions = new AgentActions(store, opened.Add, _ => { }, () => true);
+
+        await actions.OpenChatAsync("main", "side", "other", CancellationToken.None);
+
+        Assert.Equal([Links.OpenAgent("side")], opened);
+    }
+
+    [Fact]
+    public async Task Opening_a_main_chat_from_another_group_also_focuses_its_input()
+    {
+        var store = new SelectionStore { Selected = "elsewhere" };
+        var sent = new List<Shortcut>();
+        var actions = new AgentActions(store, link => store.Selected = "main", sent.Add, () => true);
+
+        await actions.OpenChatAsync("main", "main", "other", CancellationToken.None);
+
+        Assert.Equal([Shortcut.FocusMainChat], sent);
+    }
+
+    [Fact]
+    public async Task Back_to_the_main_chat_inside_the_group_focuses_its_input()
+    {
+        var store = new SelectionStore { Selected = "main" };
+        var opened = new List<string>();
+        var sent = new List<Shortcut>();
+        var actions = new AgentActions(store, opened.Add, sent.Add, () => true);
+
+        await actions.OpenChatAsync("main", "main", "other", CancellationToken.None);
+
+        Assert.Equal([Links.OpenAgent("main")], opened);
+        Assert.Equal([Shortcut.FocusMainChat], sent);
+    }
+}
+
 // Builds a database with Cursor's table layout and reads it through a copy, as the plugin does.
 public sealed class CursorStoreTests : IDisposable
 {

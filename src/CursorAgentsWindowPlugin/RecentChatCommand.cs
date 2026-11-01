@@ -8,8 +8,8 @@ using CursorAgents;
 //
 // A short press opens the chat. A long press on a main chat asks "Archive?" and a short
 // press within a few seconds archives it, which also hides its side chats. A side chat
-// cannot be archived from the Keypad: opening it selects its parent, so the archive
-// shortcut would archive the parent. A long press on a side chat just opens it.
+// cannot be archived from the Keypad yet: opening it selects its parent, so the archive
+// shortcut would archive the parent. A long press on a side chat does nothing.
 public sealed class RecentChatCommand : PluginDynamicCommand
 {
     public const int SlotCount = 9;
@@ -54,17 +54,10 @@ public sealed class RecentChatCommand : PluginDynamicCommand
                 return true;
             case DeviceButtonEventType.LongPress:
                 this.longPressHandled = true;
-                if (this.armed is null && this.Board.ChatAt(this.slot - 1) is { } held)
+                // Side chats cannot be archived from the Keypad yet, so a long press on one does nothing.
+                if (this.armed is null && this.Board.ChatAt(this.slot - 1) is { Chat.CanArchive: true } held)
                 {
-                    if (held.Chat.CanArchive)
-                    {
-                        this.Arm(held);
-                    }
-                    else
-                    {
-                        this.Log.Info("long press on a side chat, which the Keypad cannot archive on its own; opening it");
-                        Opener.Open(Links.OpenAgent(held.Chat.Id));
-                    }
+                    this.Arm(held);
                 }
                 return true;
             case DeviceButtonEventType.RepeatPress:
@@ -105,7 +98,7 @@ public sealed class RecentChatCommand : PluginDynamicCommand
         }
         else if (this.Board.ChatAt(this.slot - 1) is { } chat)
         {
-            Opener.Open(Links.OpenAgent(chat.Chat.Id));
+            this.owner.OpenChat(chat.Session.Id, chat.Chat.Id);
         }
     }
 

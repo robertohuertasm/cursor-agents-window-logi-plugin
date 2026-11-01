@@ -49,6 +49,20 @@ public class CursorAgentsWindowPlugin : Plugin
         this.store.Dispose();
     }
 
+    public void OpenChat(string sessionId, string chatId) => _ = this.OpenChatAsync(sessionId, chatId);
+
+    private async Task OpenChatAsync(string sessionId, string chatId)
+    {
+        try
+        {
+            await this.Actions.OpenChatAsync(sessionId, chatId, this.Board.DetourFor(sessionId), CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            CursorAgents.Log.Error($"could not open a chat: {e.Message}");
+        }
+    }
+
     private void Send(Shortcut shortcut)
     {
         var (key, modifiers) = shortcut switch
@@ -56,6 +70,7 @@ public class CursorAgentsWindowPlugin : Plugin
             Shortcut.NewAgent => (VirtualKeyCode.KeyN, ModifierKey.Command),
             Shortcut.NewSideChat => (VirtualKeyCode.KeyS, ModifierKey.Command | ModifierKey.Shift),
             Shortcut.ArchiveAgent => (VirtualKeyCode.KeyE, ModifierKey.Command | ModifierKey.Shift),
+            Shortcut.FocusMainChat => (VirtualKeyCode.KeyI, ModifierKey.Command),
             _ => throw new ArgumentOutOfRangeException(nameof(shortcut)),
         };
         // Cmd on macOS, Ctrl on Windows, as Cursor binds them.

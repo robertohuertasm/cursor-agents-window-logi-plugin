@@ -28,6 +28,9 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
 
     public Session? Find(string id) => this.Ranked.FirstOrDefault(s => s.Id == id);
 
+    // Any other visible agent, to select briefly before switching chats inside one group.
+    public string? DetourFor(string sessionId) => this.Ranked.FirstOrDefault(s => s.Id != sessionId)?.Id;
+
     public RankedChat? FindChat(string chatId)
     {
         foreach (var s in this.Ranked)

@@ -10,6 +10,9 @@ public enum Shortcut
 
     // Cmd+Shift+E in the Agents window: archive the selected agent.
     ArchiveAgent,
+
+    // Cmd+I in the Agents window: focus the selected agent's main chat input.
+    FocusMainChat,
 }
 
 // Actions Cursor has no link for. They go through the Agents window's own shortcuts, so
@@ -28,6 +31,50 @@ public sealed class AgentActions(ISessionStore store, Action<string> open, Actio
         await Task.Delay(Settle, cancel);
         send(Shortcut.NewAgent);
         return true;
+    }
+
+    // Opens a chat. Tested 2026-11-01:
+    // - Cursor ignores an agent link when that agent's group is already selected, so moving
+    //   to a side chat of the selected group first selects another agent, then the side
+    //   chat. The side chat tab comes to the front with no visible flicker.
+    // - An agent link restores the tab that was last active in the group, which may be a
+    //   side chat. So opening a main chat always ends with Cmd+I (Focus Chat Input), which
+    //   moves the cursor to the main chat.
+    public async Task OpenChatAsync(string sessionId, string chatId, string? detourId, CancellationToken cancel)
+    {
+        if (chatId == sessionId)
+        {
+            open(Links.OpenAgent(sessionId));
+            if (await this.WaitSelectedAsync(sessionId, cancel))
+            {
+                await Task.Delay(Settle, cancel);
+                if (store.ReadSelectedAgent() == sessionId && cursorFrontmost()) send(Shortcut.FocusMainChat);
+            }
+            return;
+        }
+
+        if (detourId is not null && store.ReadSelectedAgent() == sessionId)
+        {
+            open(Links.OpenAgent(detourId));
+            var deadline = DateTime.UtcNow + SelectTimeout;
+            while (DateTime.UtcNow < deadline && store.ReadSelectedAgent() != detourId)
+            {
+                await Task.Delay(PollStep, cancel);
+            }
+        }
+        open(Links.OpenAgent(chatId));
+    }
+
+    private async Task<bool> WaitSelectedAsync(string agentId, CancellationToken cancel)
+    {
+        var deadline = DateTime.UtcNow + SelectTimeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (store.ReadSelectedAgent() == agentId && cursorFrontmost()) return true;
+            await Task.Delay(PollStep, cancel);
+        }
+        Log.Warning("Cursor did not select the agent or come to the front in time; not focusing its main chat");
+        return false;
     }
 
     public Task<bool> NewSideChatAsync(string mainId, CancellationToken cancel) =>
@@ -66,7 +113,7 @@ public sealed class AgentActions(ISessionStore store, Action<string> open, Actio
             if (cursorFrontmost()) return true;
             await Task.Delay(PollStep, cancel);
         }
-        Log.Warning("Cursor did not come to the front in time; not sending the New agent shortcut");
+        Log.Warning("Cursor did not come to the front in time; not sending its shortcut");
         return false;
     }
 }

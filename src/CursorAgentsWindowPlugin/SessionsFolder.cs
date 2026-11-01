@@ -11,8 +11,8 @@ using CursorAgents;
 // Session menu: Back (to sessions), New chat (a side chat of this agent), Archive (the
 // agent, which also hides its side chats), then the main chat and its side chats. A press
 // on a chat opens it; a long press on the main chat archives the session. Side chats cannot
-// be archived from the Keypad, because opening one selects its parent, so a long press just
-// opens them. Archive actions ask for a second press within a few seconds.
+// be archived from the Keypad yet, because opening one selects its parent, so a long press
+// on one does nothing. Archive actions ask for a second press within a few seconds.
 public sealed class SessionsFolder : PluginDynamicFolder
 {
     private const string Back = "back";
@@ -172,17 +172,10 @@ public sealed class SessionsFolder : PluginDynamicFolder
                 {
                     this.OpenMenu(Id(actionParameter, SessionPrefix));
                 }
-                else if (this.Board.FindChat(Id(actionParameter, ChatPrefix)) is { } held)
+                // Side chats cannot be archived from the Keypad yet, so a long press on one does nothing.
+                else if (this.Board.FindChat(Id(actionParameter, ChatPrefix)) is { Chat.CanArchive: true } held)
                 {
-                    if (held.Chat.CanArchive)
-                    {
-                        this.Arm(held.Chat.Id);
-                    }
-                    else
-                    {
-                        this.Plugin.Log.Info("long press on a side chat, which the Keypad cannot archive on its own; opening it");
-                        Opener.Open(Links.OpenAgent(held.Chat.Id));
-                    }
+                    this.Arm(held.Chat.Id);
                 }
                 return true;
             case DeviceButtonEventType.RepeatPress:
@@ -235,7 +228,8 @@ public sealed class SessionsFolder : PluginDynamicFolder
         }
         else if (actionParameter.StartsWith(SessionPrefix, StringComparison.Ordinal))
         {
-            Opener.Open(Links.OpenAgent(Id(actionParameter, SessionPrefix)));
+            var sessionId = Id(actionParameter, SessionPrefix);
+            this.Owner.OpenChat(sessionId, sessionId);
         }
         else if (actionParameter.StartsWith(ChatPrefix, StringComparison.Ordinal) && this.Board.FindChat(Id(actionParameter, ChatPrefix)) is { } found)
         {
@@ -246,7 +240,7 @@ public sealed class SessionsFolder : PluginDynamicFolder
             }
             else
             {
-                Opener.Open(Links.OpenAgent(found.Chat.Id));
+                this.Owner.OpenChat(found.Session.Id, found.Chat.Id);
             }
         }
     }
