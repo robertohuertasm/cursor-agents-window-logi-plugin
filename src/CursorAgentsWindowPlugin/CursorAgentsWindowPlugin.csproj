@@ -19,6 +19,11 @@
     <ProjectReference Include="../CursorAgents.Core/CursorAgents.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Codicons (CC BY 4.0, microsoft/vscode-codicons), named Icons.<name>.svg. -->
+    <EmbeddedResource Include="Icons/*.svg" LogicalName="Icons.%(Filename).svg" />
+  </ItemGroup>
+
   <!-- LogiPluginApi brings StyleCop and pinned analyzers that enforce Logitech's style. -->
   <Target Name="DropPluginApiAnalyzers" BeforeTargets="CoreCompile">
     <ItemGroup>

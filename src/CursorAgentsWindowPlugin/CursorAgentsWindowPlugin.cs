@@ -17,6 +17,8 @@ public class CursorAgentsWindowPlugin : Plugin
         this.store = new CursorStore();
         this.Board = new SessionBoard(this.store, CursorApp.IsRunning);
         this.Actions = new AgentActions(this.store, Opener.Open, this.Send, CursorApp.IsFrontmost);
+        // Open the Agents window rather than any Cursor window, since the keybindings are its own.
+        this.Shortcuts = new ShortcutSender(CursorApp.IsFrontmost, () => Opener.Open(Links.AgentsWindow), this.SendView);
     }
 
     public override bool UsesApplicationApiOnly => true;
@@ -26,6 +28,8 @@ public class CursorAgentsWindowPlugin : Plugin
     public SessionBoard Board { get; }
 
     public AgentActions Actions { get; }
+
+    public ShortcutSender Shortcuts { get; }
 
     public override void Load()
     {
@@ -37,6 +41,10 @@ public class CursorAgentsWindowPlugin : Plugin
         }
         this.newAgent = new NewAgentCommand(this);
         this.AddDynamicAction(this.newAgent);
+        foreach (var shortcut in CursorAgents.Shortcuts.All)
+        {
+            this.AddDynamicAction(new ShortcutCommand(this, shortcut));
+        }
         this.Board.Changed += this.RedrawKeys;
         _ = Task.Run(() => this.Board.RunAsync(this.stop.Token));
         CursorAgents.Log.Info($"{this.recent.Count} recent-chat keys registered, reading copies of {this.store.SourceDir}");
@@ -77,6 +85,19 @@ public class CursorAgentsWindowPlugin : Plugin
         if (OperatingSystem.IsWindows()) modifiers = (modifiers & ~ModifierKey.Command) | ModifierKey.Control;
         this.KeyboardApi.SendShortcut(key, modifiers);
         CursorAgents.Log.Info($"sent the {shortcut} shortcut to Cursor");
+    }
+
+    private void SendView(ViewShortcut shortcut)
+    {
+        var mods = OperatingSystem.IsWindows() ? shortcut.ForWindows : shortcut.Mods;
+        var modifiers = ModifierKey.None;
+        if (mods.HasFlag(Mods.Command)) modifiers |= ModifierKey.Command;
+        if (mods.HasFlag(Mods.Option)) modifiers |= ModifierKey.Option;
+        if (mods.HasFlag(Mods.Control)) modifiers |= ModifierKey.Control;
+        if (mods.HasFlag(Mods.Shift)) modifiers |= ModifierKey.Shift;
+        var key = Enum.Parse<VirtualKeyCode>($"Key{char.ToUpperInvariant(shortcut.Key)}");
+        this.KeyboardApi.SendShortcut(key, modifiers);
+        CursorAgents.Log.Info($"sent {shortcut.Id} ({shortcut.Text(OperatingSystem.IsWindows())}) to Cursor");
     }
 
     private void RedrawKeys()

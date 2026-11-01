@@ -60,4 +60,39 @@ internal static class Faces
         b.DrawText(text, 0, 0, b.Width, (int)(b.Height * 0.8), BitmapColor.White, (int)(b.Height * 0.4), 0, 0, null);
         return b.ToImage();
     }
+
+    // A white codicon, centered above the label row.
+    public static BitmapImage Icon(string icon, PluginImageSize size)
+    {
+        using var b = new BitmapBuilder(size);
+        b.Clear(BitmapColor.Black);
+        var side = (int)(Math.Min(b.Width, b.Height) * 0.5f);
+        if (Codicon(icon) is { } image)
+        {
+            b.DrawImage(image, (b.Width - side) / 2, (int)(b.Height * 0.4f) - side / 2, side, side, BitmapRotation.None);
+        }
+        return b.ToImage();
+    }
+
+    private static readonly Dictionary<string, BitmapImage?> Codicons = [];
+
+    private static BitmapImage? Codicon(string name)
+    {
+        lock (Codicons)
+        {
+            if (Codicons.TryGetValue(name, out var cached)) return cached;
+            BitmapImage? image = null;
+            using var stream = typeof(Faces).Assembly.GetManifestResourceStream($"Icons.{name}.svg");
+            if (stream is not null)
+            {
+                // Codicons draw with currentColor; the 16px viewBox scales to any size.
+                var svg = new StreamReader(stream).ReadToEnd()
+                    .Replace("fill=\"currentColor\"", "fill=\"#ffffff\"")
+                    .Replace("width=\"16\" height=\"16\"", "width=\"128\" height=\"128\"");
+                image = BitmapImage.FromSvg(svg);
+            }
+            Codicons[name] = image;
+            return image;
+        }
+    }
 }

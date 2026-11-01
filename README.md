@@ -12,6 +12,8 @@ Drag these onto keys in Logi Options+ (group **Cursor Agents Window**):
 |---|---|
 | **Recent chat 1…9** | The Nth chat across all agents, side chats included, so an agent with several active side chats takes several keys: waiting for input first, then finished but unread, then working, then idle. Press opens it. A long press on a main chat asks **Archive?** and a press within 3 seconds archives the agent (Cursor then hides its side chats). A long press on a side chat does nothing for now (see below). |
 | **New agent** | Brings up the Agents window and presses its New Agent shortcut (Cmd+N). While Cursor is not running the key reads **Start Cursor** (▶) and a press starts it. |
+| **Sidebar, Right Sidebar, Files, Terminal, Browser, Changes, Search** (group **Shortcuts**) | Send the Cursor Agents window's keybinding for that view. macOS: ⌘B, ⌥⌘B, ⌘G, ⌘J, ⇧⌘B, ⌘E, ⇧⌘F. Windows (untested): Ctrl+B, Ctrl+Alt+B, Ctrl+G, Ctrl+J, Ctrl+Shift+B, Ctrl+E, Ctrl+Shift+F. The Agents window is brought to the front first; the keys are only sent once Cursor is frontmost. The key shows the view's codicon and name; the description in Options+ gives the shortcut. |
+| **Cursor shortcuts** (folder, group **Shortcuts**) | Opens a folder with **New** (as the New agent key) and the seven shortcut keys, after the back key the Plugin Service draws top left: one Keypad page. |
 | **Agents window** (folder) | **New**, then one key per agent, with a white badge for the number of chats when it has side chats. A press opens the agent. A long press opens its menu: **Back**, **New chat** (a side chat of that agent, Cmd+Shift+S), **Archive** (the agent and, with it, its side chats), and one key per chat, main chat first. In the menu, a press opens a chat and a long press on the main chat archives the agent; a long press on a side chat does nothing for now. Archiving asks for a second press within 3 seconds. |
 
 An agent with no name yet (its first message has not been sent) shows its folder's name, since Cursor sets the name with the first message.
@@ -27,12 +29,16 @@ Key colors: red waiting for input, amber working, blue finished but not looked a
 - **Side chats cannot be archived from the Keypad yet.** Cursor archives with Cmd+Shift+E on the selected agent, and opening a side chat selects its parent, so the key would archive the whole group. Cursor's tab menu can archive a side chat on its own; a safe way to trigger it from the plugin is still being looked for.
 - **New, New chat and Archive:** Cursor has no link for these, so the plugin uses the Agents window's own shortcuts: Cmd+N, Cmd+Shift+S (new side chat of the selected agent), and Cmd+Shift+E (archive the selected agent). Before New chat or Archive it opens the agent, waits until Cursor's database reports it selected and Cursor is frontmost, and checks both again right before sending the keys.
 
+- **Shortcuts:** the Agents window link brings that window forward (Cursor's IDE window shares the app, so being frontmost is not enough), `lsappinfo` confirms Cursor is frontmost, then the Plugin Service's `KeyboardApi.SendShortcut` presses the keys. The bindings were read from Cursor 3.27's Agents window and checked on the Keypad; Files (⌘G) and Changes (⌘E) differ from VS Code, and Right Sidebar is Cursor's "Open Apps Panel".
+
 Research notes and decisions live in [robertohuertasm/agent-skills, `labs/projects/agent-monitoring`](https://github.com/robertohuertasm/agent-skills/tree/main/labs/projects/agent-monitoring): `research/cursor-agent-mode.md` and decision 0003.
 
 ## Layout
 
 - `src/CursorAgents.Core`: everything that does not need the Logi API (database reader, state rules, ranking, links, shortcut sequencing). Tested directly.
-- `src/CursorAgentsWindowPlugin`: the Logi plugin (actions, folder, key faces). The Plugin Service only loads it when the plugin class is named after the manifest's `name` (`CursorAgentsWindow` → `CursorAgentsWindowPlugin`).
+- `src/CursorAgentsWindowPlugin`: the Logi plugin (actions, folders, key faces).
+- `src/CursorAgentsWindowPlugin/Icons`: [codicons](https://github.com/microsoft/vscode-codicons) (CC BY 4.0) for the shortcut keys.
+- `package/metadata/Icon256x256.png`: the plugin icon, Cursor's app icon. The Plugin Service only loads it when the plugin class is named after the manifest's `name` (`CursorAgentsWindow` → `CursorAgentsWindowPlugin`).
 - `tests/CursorAgents.Core.Tests`: xUnit tests for the core, including a reader test against a database with Cursor's table layout.
 - `package/metadata/LoupedeckPackage.yaml`: plugin manifest and the only version number.
 - `probes/CursorDbCli`: prints the ranked agents (short ids and folder names only) as they change.
