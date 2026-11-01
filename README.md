@@ -52,8 +52,6 @@ Keys show Cursor's logo in black on a disc colored by state, with the VS Code pl
 
 - **Shortcuts:** the Agents window link brings that window forward (Cursor's IDE window shares the app, so being frontmost is not enough), `lsappinfo` confirms Cursor is frontmost, then the Plugin Service's `KeyboardApi.SendShortcut` presses the keys. The bindings were read from Cursor 3.27's Agents window and checked on the Keypad; Files (⌘G) and Changes (⌘E) differ from VS Code, and Right Sidebar is Cursor's "Open Apps Panel".
 
-Research notes and decisions live in [robertohuertasm/agent-skills, `labs/projects/agent-monitoring`](https://github.com/robertohuertasm/agent-skills/tree/main/labs/projects/agent-monitoring): `research/cursor-agent-mode.md` and decision 0003.
-
 ## Layout
 
 - `src/CursorAgents.Core`: everything that does not need the Logi API (database reader, state rules, ranking, links, shortcut sequencing). Tested directly.
