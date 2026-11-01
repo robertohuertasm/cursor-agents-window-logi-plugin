@@ -153,10 +153,10 @@ public sealed class CursorStore : ISessionStore, IDisposable
             var blocking = Flag(r, 7);
             var updated = r.GetInt64(4);
             var activity = r.GetInt64(10);
-            string? tool = null, toolStatus = null;
+            string? tool = null, toolStatus = null, decision = null;
             if (StateRules.NeedsActivityScan(status, blocking, updated, now))
             {
-                (tool, toolStatus, var bubbleActivity) = QueryBubbles(conn, id);
+                (tool, toolStatus, decision, var bubbleActivity) = QueryBubbles(conn, id);
                 activity = Math.Max(activity, bubbleActivity);
             }
 
@@ -173,18 +173,20 @@ public sealed class CursorStore : ISessionStore, IDisposable
                 tool,
                 toolStatus,
                 activity,
-                Text(r, 11)));
+                Text(r, 11),
+                decision));
         }
         return rows;
     }
 
     // The newest tool call and the newest message write. Keys share the composerId prefix,
     // so this is a range scan on the key index.
-    private static (string? Tool, string? Status, long Activity) QueryBubbles(SqliteConnection conn, string id)
+    private static (string? Tool, string? Status, string? Decision, long Activity) QueryBubbles(SqliteConnection conn, string id)
     {
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             SELECT (SELECT json_extract(value, '$.toolFormerData.name') || char(31) || COALESCE(json_extract(value, '$.toolFormerData.status'), '')
+                           || char(31) || COALESCE(json_extract(value, '$.toolFormerData.userDecision'), '')
                     FROM cursorDiskKV
                     WHERE key >= $lo AND key < $hi AND json_extract(value, '$.toolFormerData.name') IS NOT NULL
                     ORDER BY json_extract(value, '$.createdAt') DESC LIMIT 1),
@@ -194,11 +196,12 @@ public sealed class CursorStore : ISessionStore, IDisposable
         cmd.Parameters.AddWithValue("$lo", $"bubbleId:{id}:");
         cmd.Parameters.AddWithValue("$hi", $"bubbleId:{id};");
         using var r = cmd.ExecuteReader();
-        if (!r.Read()) return (null, null, 0);
+        if (!r.Read()) return (null, null, null, 0);
         var activity = r.IsDBNull(1) ? 0 : r.GetInt64(1);
-        if (r.IsDBNull(0)) return (null, null, activity);
+        if (r.IsDBNull(0)) return (null, null, null, activity);
         var parts = r.GetString(0).Split('\u001f');
-        return (parts[0], parts.Length > 1 && parts[1].Length > 0 ? parts[1] : null, activity);
+        string? Part(int i) => parts.Length > i && parts[i].Length > 0 ? parts[i] : null;
+        return (parts[0], Part(1), Part(2), activity);
     }
 
     private static string? Text(SqliteDataReader r, int i) => r.IsDBNull(i) ? null : r.GetValue(i)?.ToString();

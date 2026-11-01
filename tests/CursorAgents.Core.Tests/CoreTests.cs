@@ -20,9 +20,10 @@ public class StateRulesTests
         bool draft = false,
         string? path = "/Users/me/src/app",
         string? parent = null,
-        long updatedOffsetMs = 0) =>
+        long updatedOffsetMs = 0,
+        string? decision = null) =>
         new(id ?? Guid.NewGuid().ToString(), name, path, Now.ToUnixTimeMilliseconds() + updatedOffsetMs, draft, unread, blocking, status, generating,
-            tool, toolStatus, (Now - (sinceActivity ?? TimeSpan.Zero)).ToUnixTimeMilliseconds(), parent);
+            tool, toolStatus, (Now - (sinceActivity ?? TimeSpan.Zero)).ToUnixTimeMilliseconds(), parent, decision);
 
     [Fact]
     public void Blocking_approval_needs_input() =>
@@ -32,9 +33,15 @@ public class StateRulesTests
     public void Open_question_card_needs_input() =>
         Assert.Equal(KeyState.InputNeeded, StateRules.Infer(Row(status: "completed", tool: "ask_question", toolStatus: "loading"), Now));
 
+    // Cursor marks the question completed as soon as the card shows; only userDecision
+    // says it was answered.
+    [Fact]
+    public void Shown_but_unanswered_question_needs_input() =>
+        Assert.Equal(KeyState.InputNeeded, StateRules.Infer(Row(tool: "ask_question", toolStatus: "completed"), Now));
+
     [Fact]
     public void Answered_question_does_not_need_input() =>
-        Assert.Equal(KeyState.Idle, StateRules.Infer(Row(tool: "ask_question", toolStatus: "completed"), Now));
+        Assert.Equal(KeyState.Idle, StateRules.Infer(Row(tool: "ask_question", toolStatus: "completed", decision: "accepted"), Now));
 
     [Fact]
     public void Active_status_with_recent_writes_is_working() =>

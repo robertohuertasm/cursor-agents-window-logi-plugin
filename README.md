@@ -18,7 +18,7 @@ Drag these onto keys in Logi Options+ (group **Cursor Agents Window**):
 
 An agent with no name yet (its first message has not been sent) shows its folder's name, since Cursor sets the name with the first message.
 
-Keys show Cursor's logo in white on a disc colored by state, with the VS Code plugin's colors: red waiting for input, amber working, blue finished but not looked at yet, green idle, dark red Cursor not running, dark grey empty.
+Keys show Cursor's logo in black on a disc colored by state, with the VS Code plugin's colors: red waiting for input, amber working, blue finished but not looked at yet, green idle, dark red Cursor not running, dark grey empty.
 
 ## How it works
 

@@ -19,7 +19,10 @@ public static class StateRules
     public static KeyState Infer(SessionRow row, DateTimeOffset now)
     {
         var toolLoading = row.LastToolStatus == "loading";
-        if (row.BlockingPending || (toolLoading && row.LastTool is { } tool && QuestionTools.Contains(tool)))
+        // Cursor marks a question "completed" as soon as the card shows, before the user
+        // answers; only userDecision tells that it was answered (seen 2026-11-01).
+        var question = row.LastTool is { } tool && QuestionTools.Contains(tool);
+        if (row.BlockingPending || (question && (toolLoading || row.LastToolDecision is null)))
         {
             return KeyState.InputNeeded;
         }

@@ -15,6 +15,7 @@ public sealed record SessionRow(
     string? LastTool,
     string? LastToolStatus,
     long LastActivityAt,
-    string? ParentId = null);
+    string? ParentId = null,
+    string? LastToolDecision = null);
 
 public sealed record StoreSnapshot(IReadOnlyList<SessionRow> Rows, string? SelectedAgent);

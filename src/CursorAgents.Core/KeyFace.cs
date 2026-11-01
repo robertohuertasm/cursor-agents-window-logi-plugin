@@ -13,7 +13,7 @@ public static class KeyFace
     // unused slot answers with a zero-width space.
     public const string Blank = "\u200B";
 
-    // The disc color behind the white Cursor logo; the same colors as the VS Code plugin.
+    // The disc color behind the black Cursor logo; the same colors as the VS Code plugin.
     public static Rgb For(KeyState state) => state switch
     {
         KeyState.InputNeeded => new Rgb(230, 40, 40),
