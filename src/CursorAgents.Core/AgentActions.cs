@@ -36,7 +36,7 @@ public sealed class AgentActions(ISessionStore store, Action<string> open, Actio
     // Opens a chat. Tested 2026-11-01:
     // - Cursor ignores an agent link when that agent's group is already selected, so moving
     //   to a side chat of the selected group first selects another agent, then the side
-    //   chat. The side chat tab comes to the front with no visible flicker.
+    //   chat. The side chat tab comes to the front after a visible flicker (accepted by the user).
     // - An agent link restores the tab that was last active in the group, which may be a
     //   side chat. So opening a main chat always ends with Cmd+I (Focus Chat Input), which
     //   moves the cursor to the main chat.
