@@ -13,6 +13,17 @@
     <PluginName>CursorAgentsWindow</PluginName>
   </PropertyGroup>
 
+  <!-- Ship native SQLite only for the platforms the Plugin Service runs on. -->
+  <Target Name="DropUnusedRuntimes" AfterTargets="Build">
+    <ItemGroup>
+      <UnusedRuntimeDirs Include="$([System.IO.Directory]::GetDirectories('$(OutputPath)runtimes'))"
+                         Condition="Exists('$(OutputPath)runtimes')" />
+      <UnusedRuntimeDirs Remove="@(UnusedRuntimeDirs)"
+                         Condition="$([System.String]::Copy('%(Identity)').EndsWith('osx-arm64')) or $([System.String]::Copy('%(Identity)').EndsWith('osx-x64')) or $([System.String]::Copy('%(Identity)').EndsWith('win-x64')) or $([System.String]::Copy('%(Identity)').EndsWith('win-arm64'))" />
+    </ItemGroup>
+    <RemoveDir Directories="@(UnusedRuntimeDirs)" />
+  </Target>
+
   <ItemGroup>
     <!-- Compile-time only: the Plugin Service supplies PluginApi and its dependencies. -->
     <PackageReference Include="LogiPluginApi" Version="6.4.2.3567" ExcludeAssets="runtime;native" />

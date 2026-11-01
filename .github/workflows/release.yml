@@ -1,0 +1,39 @@
+# Tag a commit `vX.Y.Z` (matching LoupedeckPackage.yaml) to build the package
+# and publish it as a GitHub Release asset named CursorAgentsWindow_X.Y.Z.lplug4.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      PKG: CursorAgentsWindow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Check that the tag matches the manifest version
+        run: |
+          manifest=$(sed -n 's/^version:[[:space:]]*//p' package/metadata/LoupedeckPackage.yaml)
+          if [ "$manifest" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "tag says ${GITHUB_REF_NAME#v}, LoupedeckPackage.yaml says $manifest" >&2
+            exit 1
+          fi
+      - run: dotnet test tests/CursorAgents.Core.Tests
+      - run: dotnet build src/CursorAgentsWindowPlugin -c Release
+      - run: dotnet tool install --global LogiPluginTool --version 6.4.2.3599
+      - run: logiplugintool pack build/Release "${PKG}_${GITHUB_REF_NAME#v}.lplug4"
+      - run: logiplugintool verify "${PKG}_${GITHUB_REF_NAME#v}.lplug4"
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${PKG}_${GITHUB_REF_NAME#v}.lplug4" \
+            --title "$GITHUB_REF_NAME" --generate-notes

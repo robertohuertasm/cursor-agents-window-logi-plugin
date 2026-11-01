@@ -2,7 +2,15 @@
 
 A Logitech MX Creative Keypad plugin that shows Cursor Agents window agents and their state on the keys, and opens an agent with a press. It is the Cursor counterpart of [vscode-agents-window-logi-plugin](https://github.com/robertohuertasm/vscode-agents-window-logi-plugin) and uses the same key colors.
 
-Status: 0.1.0, first version. Loads in Logi Plugin Service on macOS; not yet tried on the Keypad. Windows paths are written but untested.
+Status: 0.1.0, first working version. Tested on the Keypad on macOS. Windows paths are written but untested.
+
+## Install
+
+Requires macOS, Cursor 3.27 or later, Logi Options+ with Logi Plugin Service 6.4 or later, and an MX Creative Keypad (or Loupedeck CT).
+
+1. Download `CursorAgentsWindow_<version>.lplug4` from the [latest release](https://github.com/robertohuertasm/cursor-agents-window-logi-plugin/releases/latest).
+2. Double-click it. Logi Options+ installs the plugin.
+3. In Options+, select the Keypad, open **All actions**, and drag the actions below onto keys.
 
 ## Actions
 
@@ -55,3 +63,11 @@ dotnet run --project probes/CursorDbCli -- 60
 ```
 
 The log is at `~/Library/Application Support/Logi/LogiPluginService/Logs/plugin_logs/CursorAgentsWindow.log`. A warning that the service "Cannot create dynamic action" for `RecentAgentCommand` is expected: the plugin adds those actions itself.
+
+## Release
+
+Set `version` in `package/metadata/LoupedeckPackage.yaml`, commit, and push a matching tag (`git tag v0.1.0 && git push origin v0.1.0`). The release workflow runs the tests, builds Release, packs and verifies `CursorAgentsWindow_<version>.lplug4` with `LogiPluginTool`, and attaches it to a GitHub Release. To pack locally: `dotnet build src/CursorAgentsWindowPlugin -c Release`, then `logiplugintool pack build/Release CursorAgentsWindow_<version>.lplug4`. Remove a dev link with `dotnet clean src/CursorAgentsWindowPlugin` before installing the package.
+
+## License
+
+MIT. See [LICENSE](LICENSE). Codicons are CC BY 4.0.
