@@ -141,9 +141,27 @@ public sealed class AgentsFolder : PluginDynamicFolder
     // Release, a long press on LongPress. Other keys keep the default handling.
     public override bool ProcessButtonEvent2(string actionParameter, DeviceButtonEvent2 buttonEvent)
     {
-        if (!actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal))
+        // Folder and agent keys act on Release. Opening a folder changes the keys under the finger,
+        // so a Press-time action would hand the Release of the same press to the new key below it.
+        var isFolder = actionParameter.StartsWith(WorkspacePrefix, StringComparison.Ordinal);
+        if (!isFolder && !actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal))
         {
             return base.ProcessButtonEvent2(actionParameter, buttonEvent);
+        }
+
+        if (isFolder)
+        {
+            switch (buttonEvent.EventType)
+            {
+                case DeviceButtonEventType.Press:
+                case DeviceButtonEventType.RepeatPress:
+                    return true;
+                case DeviceButtonEventType.Release:
+                    this.Tap(actionParameter);
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         switch (buttonEvent.EventType)
