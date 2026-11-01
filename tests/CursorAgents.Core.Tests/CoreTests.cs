@@ -18,9 +18,11 @@ public class StateRulesTests
         string? id = null,
         string? name = "Fix the build",
         bool draft = false,
-        string? path = "/Users/me/src/app") =>
-        new(id ?? Guid.NewGuid().ToString(), name, path, Now.ToUnixTimeMilliseconds(), draft, unread, blocking, status, generating,
-            tool, toolStatus, (Now - (sinceActivity ?? TimeSpan.Zero)).ToUnixTimeMilliseconds());
+        string? path = "/Users/me/src/app",
+        string? parent = null,
+        long updatedOffsetMs = 0) =>
+        new(id ?? Guid.NewGuid().ToString(), name, path, Now.ToUnixTimeMilliseconds() + updatedOffsetMs, draft, unread, blocking, status, generating,
+            tool, toolStatus, (Now - (sinceActivity ?? TimeSpan.Zero)).ToUnixTimeMilliseconds(), parent);
 
     [Fact]
     public void Blocking_approval_needs_input() =>
@@ -63,18 +65,42 @@ public class StateRulesTests
     [Fact]
     public void Session_takes_folder_name_and_default_title()
     {
-        var s = StateRules.ToSession(Row(name: "  ", path: "/Users/me/src/app/"), Now);
+        var s = StateRules.BuildSessions([Row(name: "  ", path: "/Users/me/src/app/")], Now).Single();
         Assert.Equal("app", s.WorkspaceName);
-        Assert.Equal("/Users/me/src/app", s.WorkspaceKey);
         Assert.Equal("app", s.Title);
-        Assert.Equal("No folder", StateRules.ToSession(Row(path: null), Now).WorkspaceName);
+        Assert.Equal("No folder", StateRules.BuildSessions([Row(path: null)], Now).Single().WorkspaceName);
+    }
+
+    [Fact]
+    public void Side_chats_group_under_their_parent_and_color_it()
+    {
+        var main = Guid.NewGuid().ToString();
+        var older = Row(name: "older side", parent: main, updatedOffsetMs: -1000);
+        var waiting = Row(name: "waiting side", parent: main, blocking: true);
+        var sessions = StateRules.BuildSessions([Row(id: main, name: "main"), older, waiting], Now);
+
+        var s = Assert.Single(sessions);
+        Assert.Equal(["main", "waiting side", "older side"], s.Chats.Select(c => c.Title));
+        Assert.True(s.Chats[0].IsMain);
+        Assert.False(s.Chats[1].CanArchive);
+        Assert.Equal(KeyState.InputNeeded, s.State);
+    }
+
+    // Cursor hides side chats of an archived parent; the store does not return archived
+    // parents, so their side chats have no parent row and are dropped.
+    [Fact]
+    public void Side_chats_without_a_visible_parent_are_hidden()
+    {
+        var sessions = StateRules.BuildSessions([Row(name: "orphan", parent: Guid.NewGuid().ToString(), unread: true)], Now);
+        Assert.Empty(sessions);
     }
 }
 
 public class RankingTests
 {
-    private static Session S(string id, KeyState state, int minutesAgo, string ws = "/a") =>
-        new(id, id, ws, Path.GetFileName(ws), state, DateTimeOffset.UnixEpoch.AddDays(1).AddMinutes(-minutesAgo));
+    private static Session S(string id, KeyState state, int minutesAgo, params Chat[] sides) =>
+        new(id, id, "a", state, DateTimeOffset.UnixEpoch.AddDays(1).AddMinutes(-minutesAgo),
+            [new Chat(id, id, state, IsMain: true), .. sides]);
 
     [Fact]
     public void Needs_the_user_first_then_recent()
@@ -84,13 +110,12 @@ public class RankingTests
     }
 
     [Fact]
-    public void Workspaces_take_their_most_urgent_agent()
+    public void A_waiting_side_chat_takes_a_key_before_idle_main_chats()
     {
-        var ranked = Ranking.Rank([S("a1", KeyState.Idle, 0, "/a"), S("b1", KeyState.Idle, 10, "/b"), S("b2", KeyState.InputNeeded, 20, "/b")]);
-        var groups = Ranking.Group(ranked);
-        Assert.Equal(["/b", "/a"], groups.Select(g => g.Key));
-        Assert.Equal(KeyState.InputNeeded, groups[0].State);
-        Assert.Equal(["b2", "b1"], groups[0].Sessions.Select(s => s.Id));
+        var ranked = Ranking.Rank([S("a", KeyState.Idle, 0), S("b", KeyState.Idle, 10, new Chat("b-side", "side", KeyState.InputNeeded, IsMain: false))]);
+        var chats = Ranking.RankChats(ranked);
+        Assert.Equal(["b-side", "a", "b"], chats.Select(c => c.Chat.Id));
+        Assert.Equal("b", chats[0].Session.Id);
     }
 }
 
@@ -170,6 +195,8 @@ public sealed class CursorStoreTests : IDisposable
         var waiting = Guid.NewGuid().ToString();
         var done = Guid.NewGuid().ToString();
         var archived = Guid.NewGuid().ToString();
+        var side = Guid.NewGuid().ToString();
+        var otherSubagent = Guid.NewGuid().ToString();
         var source = Path.Combine(this.dir, "src");
         Directory.CreateDirectory(source);
         using (var conn = new SqliteConnection($"Data Source={Path.Combine(source, "state.vscdb")};Pooling=False"))
@@ -183,6 +210,8 @@ public sealed class CursorStoreTests : IDisposable
             Header(conn, waiting, now, 0, """{"name":"Deploy","hasBlockingPendingActions":true,"workspaceIdentifier":{"uri":{"path":"/w/app"}}}""");
             Header(conn, done, now - 1000, 0, """{"name":"Done","hasUnreadMessages":true,"workspaceIdentifier":{"uri":{"path":"/w/lib"}}}""");
             Header(conn, archived, now, 1, """{"name":"Old"}""");
+            Header(conn, side, now, 0, $$$"""{"name":"Side","subagentInfo":{"parentComposerId":"{{{waiting}}}"}}""", subagent: true);
+            Header(conn, otherSubagent, now, 0, """{"name":"Task"}""", subagent: true, type: "task");
             Kv(conn, $"composerData:{waiting}", $$$"""{"status":"aborted","generatingBubbleIds":[],"lastUpdatedAt":{{{now}}}}""");
             Kv(conn, $"composerData:{done}", """{"status":"completed"}""");
             Kv(conn, $"bubbleId:{waiting}:1", """{"createdAt":"2026-01-01T00:00:00Z","toolFormerData":{"name":"read_file_v2","status":"completed"}}""");
@@ -195,7 +224,9 @@ public sealed class CursorStoreTests : IDisposable
 
         Assert.Equal(waiting, snapshot.SelectedAgent);
         Assert.Equal(waiting, store.ReadSelectedAgent());
-        Assert.Equal(2, snapshot.Rows.Count);
+        Assert.Equal(3, snapshot.Rows.Count);
+        Assert.Equal(waiting, snapshot.Rows.Single(r => r.Id == side).ParentId);
+        Assert.DoesNotContain(snapshot.Rows, r => r.Id == otherSubagent);
         var w = snapshot.Rows.Single(r => r.Id == waiting);
         Assert.True(w.BlockingPending);
         Assert.Equal("run_terminal_command_v2", w.LastTool);
@@ -207,10 +238,12 @@ public sealed class CursorStoreTests : IDisposable
         Assert.Same(snapshot, store.Read());
     }
 
-    private static void Header(SqliteConnection conn, string id, long updated, int archived, string json)
+    private static void Header(SqliteConnection conn, string id, long updated, int archived, string json, bool subagent = false, string type = "side-chat")
     {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO composerHeaders (composerId, createdAt, lastUpdatedAt, isArchived, isSubagent, value) VALUES ($id, $t, $t, $a, 0, $v)";
+        cmd.CommandText = "INSERT INTO composerHeaders (composerId, createdAt, lastUpdatedAt, isArchived, isSubagent, subagentTypeName, value) VALUES ($id, $t, $t, $a, $s, $type, $v)";
+        cmd.Parameters.AddWithValue("$s", subagent ? 1 : 0);
+        cmd.Parameters.AddWithValue("$type", subagent ? type : DBNull.Value);
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$t", updated);
         cmd.Parameters.AddWithValue("$a", archived);

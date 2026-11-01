@@ -5,7 +5,7 @@ using CursorAgents;
 public class CursorAgentsWindowPlugin : Plugin
 {
     private readonly CancellationTokenSource stop = new();
-    private readonly List<RecentAgentCommand> recent = [];
+    private readonly List<RecentChatCommand> recent = [];
     private readonly CursorStore store;
     private NewAgentCommand? newAgent;
 
@@ -29,9 +29,9 @@ public class CursorAgentsWindowPlugin : Plugin
 
     public override void Load()
     {
-        for (var slot = 1; slot <= RecentAgentCommand.SlotCount; slot++)
+        for (var slot = 1; slot <= RecentChatCommand.SlotCount; slot++)
         {
-            var command = new RecentAgentCommand(this, slot);
+            var command = new RecentChatCommand(this, slot);
             this.recent.Add(command);
             this.AddDynamicAction(command);
         }
@@ -39,7 +39,7 @@ public class CursorAgentsWindowPlugin : Plugin
         this.AddDynamicAction(this.newAgent);
         this.Board.Changed += this.RedrawKeys;
         _ = Task.Run(() => this.Board.RunAsync(this.stop.Token));
-        CursorAgents.Log.Info($"{this.recent.Count} recent-agent keys registered, reading copies of {this.store.SourceDir}");
+        CursorAgents.Log.Info($"{this.recent.Count} recent-chat keys registered, reading copies of {this.store.SourceDir}");
     }
 
     public override void Unload()
@@ -54,6 +54,7 @@ public class CursorAgentsWindowPlugin : Plugin
         var (key, modifiers) = shortcut switch
         {
             Shortcut.NewAgent => (VirtualKeyCode.KeyN, ModifierKey.Command),
+            Shortcut.NewSideChat => (VirtualKeyCode.KeyS, ModifierKey.Command | ModifierKey.Shift),
             Shortcut.ArchiveAgent => (VirtualKeyCode.KeyE, ModifierKey.Command | ModifierKey.Shift),
             _ => throw new ArgumentOutOfRangeException(nameof(shortcut)),
         };

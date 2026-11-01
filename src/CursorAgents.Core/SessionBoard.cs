@@ -14,7 +14,7 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
 
     public IReadOnlyList<Session> Ranked { get; private set; } = [];
 
-    public IReadOnlyList<Workspace> Workspaces { get; private set; } = [];
+    public IReadOnlyList<RankedChat> RankedChats { get; private set; } = [];
 
     public bool Online { get; private set; }
 
@@ -24,9 +24,18 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
 
     public Session? At(int index) => index >= 0 && index < this.Ranked.Count ? this.Ranked[index] : null;
 
+    public RankedChat? ChatAt(int index) => index >= 0 && index < this.RankedChats.Count ? this.RankedChats[index] : null;
+
     public Session? Find(string id) => this.Ranked.FirstOrDefault(s => s.Id == id);
 
-    public Workspace? FindWorkspace(string key) => this.Workspaces.FirstOrDefault(w => w.Key == key);
+    public RankedChat? FindChat(string chatId)
+    {
+        foreach (var s in this.Ranked)
+        {
+            if (s.Chats.FirstOrDefault(c => c.Id == chatId) is { } chat) return new RankedChat(s, chat);
+        }
+        return null;
+    }
 
     // Null means Cursor is not running or its database is unreadable. Returns whether anything visible changed.
     public bool Apply(StoreSnapshot? snapshot)
@@ -34,12 +43,12 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
         var at = this.now();
         var ranked = snapshot is null
             ? []
-            : Ranking.Rank(snapshot.Rows.Where(StateRules.IsVisible).Select(r => StateRules.ToSession(r, at)));
+            : Ranking.Rank(StateRules.BuildSessions(snapshot.Rows, at));
         var online = snapshot is not null;
         if (online) this.LogTransitions(ranked);
         var next = Signature(ranked, online);
         this.Ranked = ranked;
-        this.Workspaces = Ranking.Group(ranked);
+        this.RankedChats = Ranking.RankChats(ranked);
         this.Online = online;
         if (next == this.signature) return false;
         this.signature = next;
@@ -108,15 +117,15 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
     // One line per state change, with a short id and no title, to compare with what the keys show.
     private void LogTransitions(IReadOnlyList<Session> ranked)
     {
-        var states = ranked.ToDictionary(s => s.Id, s => s.State);
+        var states = ranked.SelectMany(s => s.Chats).ToDictionary(c => c.Id, c => c.State);
         if (this.lastStates.Count > 0)
         {
             foreach (var (id, state) in states)
             {
                 if (this.lastStates.TryGetValue(id, out var before) && before != state)
                 {
-                    var rank = ranked.ToList().FindIndex(s => s.Id == id) + 1;
-                    Log.Info($"session {id[..Math.Min(8, id.Length)]} {before} -> {state} (now #{rank})");
+                    var rank = ranked.ToList().FindIndex(s => s.Chats.Any(c => c.Id == id)) + 1;
+                    Log.Info($"chat {id[..Math.Min(8, id.Length)]} {before} -> {state} (session #{rank})");
                 }
             }
         }
@@ -124,5 +133,6 @@ public sealed class SessionBoard(ISessionStore store, Func<bool> cursorRunning, 
     }
 
     private static string Signature(IReadOnlyList<Session> ranked, bool online) =>
-        (online ? "on" : "off") + "\n" + string.Join("\n", ranked.Select(s => $"{s.Id}\t{s.Title}\t{s.State}\t{s.WorkspaceKey}"));
+        (online ? "on" : "off") + "\n" + string.Join("\n", ranked.Select(s =>
+            $"{s.Id}\t{s.Title}\t{s.State}\t" + string.Join(",", s.Chats.Select(c => $"{c.Id}|{c.Title}|{c.State}"))));
 }

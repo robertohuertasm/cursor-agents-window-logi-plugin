@@ -12,17 +12,24 @@ public enum KeyState
     Idle,
 }
 
-// One Cursor agent ("composer"). Id is the composerId used in open links.
+// One chat of a session: the main agent or one of its side chats. Id is the composerId
+// used in open links. Side chats cannot be archived on their own from the Keypad: opening
+// one selects its parent, so the archive shortcut would archive the parent instead.
+public sealed record Chat(string Id, string Title, KeyState State, bool IsMain)
+{
+    public bool CanArchive => this.IsMain;
+}
+
+// A main Cursor agent with its side chats. State is the most urgent of its chats, so a
+// session whose side chat waits or is unread is not shown as idle. Chats lists the main
+// chat first, then the side chats, newest first.
 public sealed record Session(
     string Id,
     string Title,
-    string WorkspaceKey,
     string WorkspaceName,
     KeyState State,
-    DateTimeOffset ModifiedAt);
-
-// The sessions of one folder, as the Agents window groups them.
-public sealed record Workspace(string Key, string Name, KeyState State, IReadOnlyList<Session> Sessions);
+    DateTimeOffset ModifiedAt,
+    IReadOnlyList<Chat> Chats);
 
 public static class Status
 {

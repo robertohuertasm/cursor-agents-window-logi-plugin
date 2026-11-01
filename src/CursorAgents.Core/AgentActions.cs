@@ -5,6 +5,9 @@ public enum Shortcut
     // Cmd+N in the Agents window: new agent.
     NewAgent,
 
+    // Cmd+Shift+S in the Agents window: new side chat of the selected agent.
+    NewSideChat,
+
     // Cmd+Shift+E in the Agents window: archive the selected agent.
     ArchiveAgent,
 }
@@ -27,24 +30,31 @@ public sealed class AgentActions(ISessionStore store, Action<string> open, Actio
         return true;
     }
 
-    public async Task<bool> ArchiveAsync(string composerId, CancellationToken cancel)
+    public Task<bool> NewSideChatAsync(string mainId, CancellationToken cancel) =>
+        this.SendToSelectedAsync(mainId, Shortcut.NewSideChat, "new side chat", cancel);
+
+    // Archives a main agent. Cursor then hides its side chats, as it does in its own UI.
+    public Task<bool> ArchiveAsync(string mainId, CancellationToken cancel) =>
+        this.SendToSelectedAsync(mainId, Shortcut.ArchiveAgent, "archive", cancel);
+
+    private async Task<bool> SendToSelectedAsync(string mainId, Shortcut shortcut, string what, CancellationToken cancel)
     {
-        open(Links.OpenAgent(composerId));
+        open(Links.OpenAgent(mainId));
         var deadline = DateTime.UtcNow + SelectTimeout;
         while (DateTime.UtcNow < deadline)
         {
-            if (store.ReadSelectedAgent() == composerId && cursorFrontmost())
+            if (store.ReadSelectedAgent() == mainId && cursorFrontmost())
             {
                 await Task.Delay(Settle, cancel);
                 // Re-check right before the keys go out: the shortcut acts on whatever is selected.
-                if (store.ReadSelectedAgent() != composerId || !cursorFrontmost()) break;
-                send(Shortcut.ArchiveAgent);
+                if (store.ReadSelectedAgent() != mainId || !cursorFrontmost()) break;
+                send(shortcut);
                 return true;
             }
             await Task.Delay(PollStep, cancel);
         }
 
-        Log.Warning("did not archive: Cursor did not select the agent or was not frontmost in time");
+        Log.Warning($"did not {what}: Cursor did not select the agent or was not frontmost in time");
         return false;
     }
 

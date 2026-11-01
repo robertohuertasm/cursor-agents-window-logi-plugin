@@ -12,14 +12,22 @@ public static class Ranking
             .ThenBy(s => s.Id, StringComparer.Ordinal)
             .ToList();
 
-    // Workspaces ordered by their most urgent session, then their most recent one; each
-    // keeps its sessions in ranked order.
-    public static IReadOnlyList<Workspace> Group(IReadOnlyList<Session> ranked) =>
-        ranked
-            .GroupBy(s => s.WorkspaceKey)
-            .Select(g => new Workspace(g.Key, g.First().WorkspaceName, Status.MostUrgent(g.Select(s => s.State)), g.ToList()))
-            .OrderBy(w => Status.Priority(w.State))
-            .ThenByDescending(w => w.Sessions.Max(s => s.ModifiedAt))
-            .ThenBy(w => w.Key, StringComparer.Ordinal)
+    // Every chat of every ranked session, for the Recent keys: a session with several
+    // active chats takes several keys. Same priority as sessions; equal states keep their
+    // session's order and then the session's own chat order (main chat first).
+    public static IReadOnlyList<RankedChat> RankChats(IReadOnlyList<Session> rankedSessions) =>
+        rankedSessions
+            .SelectMany((s, si) => s.Chats.Select((c, ci) => (Entry: new RankedChat(s, c), si, ci)))
+            .OrderBy(x => Status.Priority(x.Entry.Chat.State))
+            .ThenBy(x => x.si)
+            .ThenBy(x => x.ci)
+            .Select(x => x.Entry)
             .ToList();
+}
+
+public sealed record RankedChat(Session Session, Chat Chat)
+{
+    public bool IsMain => this.Chat.IsMain;
+
+    public string Title => this.Chat.Title;
 }

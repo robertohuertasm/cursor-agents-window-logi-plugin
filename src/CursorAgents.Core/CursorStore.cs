@@ -16,7 +16,7 @@ public interface ISessionStore
 // when the database or its WAL changed.
 public sealed class CursorStore : ISessionStore, IDisposable
 {
-    private const int MaxSessions = 60;
+    private const int MaxSessions = 120;
     private const int CopyAttempts = 4;
     private static readonly TimeSpan CopyRetryDelay = TimeSpan.FromMilliseconds(150);
     private readonly string sourceDir;
@@ -135,10 +135,12 @@ public sealed class CursorStore : ISessionStore, IDisposable
                    json_array_length(json_extract(d.value, '$.generatingBubbleIds')),
                    MAX(COALESCE(json_extract(d.value, '$.lastUpdatedAt'), 0),
                        COALESCE(json_extract(h.value, '$.conversationCheckpointLastUpdatedAt'), 0),
-                       COALESCE(h.lastUpdatedAt, h.createdAt, 0))
+                       COALESCE(h.lastUpdatedAt, h.createdAt, 0)),
+                   json_extract(h.value, '$.subagentInfo.parentComposerId')
             FROM composerHeaders h
             LEFT JOIN cursorDiskKV d ON d.key = 'composerData:' || h.composerId
-            WHERE h.isArchived = 0 AND h.isSubagent = 0
+            WHERE h.isArchived = 0
+              AND (h.isSubagent = 0 OR (h.subagentTypeName = 'side-chat' AND json_extract(h.value, '$.subagentInfo.parentComposerId') IS NOT NULL))
             ORDER BY COALESCE(h.lastUpdatedAt, h.createdAt) DESC
             LIMIT $n
             """;
@@ -170,7 +172,8 @@ public sealed class CursorStore : ISessionStore, IDisposable
                 r.IsDBNull(9) ? 0 : r.GetInt32(9),
                 tool,
                 toolStatus,
-                activity));
+                activity,
+                Text(r, 11)));
         }
         return rows;
     }

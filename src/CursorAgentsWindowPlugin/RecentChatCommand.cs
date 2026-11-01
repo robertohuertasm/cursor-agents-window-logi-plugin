@@ -2,13 +2,15 @@ namespace Loupedeck.CursorAgentsWindowPlugin;
 
 using CursorAgents;
 
-// "Recent agent N": the Nth agent across all folders by priority, dragged onto a key in
-// Options+. Profiles refer to keys by Name, so it must not change.
+// "Recent chat N": the Nth chat across all sessions by priority, dragged onto a key in
+// Options+. The name stays cursoragents_recent_N, as in 0.1.0 when keys were agents,
+// because profiles refer to keys by it.
 //
-// A short press opens the agent. A long press asks "Archive?" and a short press within a
-// few seconds confirms. While waiting, the key stays on the agent it is about to archive
-// even if the ranking changes.
-public sealed class RecentAgentCommand : PluginDynamicCommand
+// A short press opens the chat. A long press on a main chat asks "Archive?" and a short
+// press within a few seconds archives it, which also hides its side chats. A side chat
+// cannot be archived from the Keypad: opening it selects its parent, so the archive
+// shortcut would archive the parent. A long press on a side chat just opens it.
+public sealed class RecentChatCommand : PluginDynamicCommand
 {
     public const int SlotCount = 9;
     private static readonly TimeSpan ConfirmWindow = TimeSpan.FromSeconds(3);
@@ -16,11 +18,11 @@ public sealed class RecentAgentCommand : PluginDynamicCommand
     private readonly CursorAgentsWindowPlugin owner;
     private readonly int slot;
     private bool longPressHandled;
-    private Session? armed;
+    private RankedChat? armed;
     private CancellationTokenSource? armTimer;
 
-    public RecentAgentCommand(CursorAgentsWindowPlugin owner, int slot)
-        : base($"Recent agent {slot}", $"Status of the {Ordinal(slot)} agent in the Cursor Agents window, active ones first; press to open it, hold to archive it", "Recent agents", DeviceType.All)
+    public RecentChatCommand(CursorAgentsWindowPlugin owner, int slot)
+        : base($"Recent chat {slot}", $"Status of the {Ordinal(slot)} chat in the Cursor Agents window, active ones first; press to open it, hold to archive it", "Recent chats", DeviceType.All)
     {
         this.owner = owner;
         this.slot = slot;
@@ -29,7 +31,7 @@ public sealed class RecentAgentCommand : PluginDynamicCommand
 
     private SessionBoard Board => this.owner.Board;
 
-    private Session? Current => this.armed ?? this.Board.At(this.slot - 1);
+    private RankedChat? Current => this.armed ?? this.Board.ChatAt(this.slot - 1);
 
     public void Redraw()
     {
@@ -52,9 +54,17 @@ public sealed class RecentAgentCommand : PluginDynamicCommand
                 return true;
             case DeviceButtonEventType.LongPress:
                 this.longPressHandled = true;
-                if (this.armed is null && this.Board.At(this.slot - 1) is { } held)
+                if (this.armed is null && this.Board.ChatAt(this.slot - 1) is { } held)
                 {
-                    this.Arm(held);
+                    if (held.Chat.CanArchive)
+                    {
+                        this.Arm(held);
+                    }
+                    else
+                    {
+                        this.Log.Info("long press on a side chat, which the Keypad cannot archive on its own; opening it");
+                        Opener.Open(Links.OpenAgent(held.Chat.Id));
+                    }
                 }
                 return true;
             case DeviceButtonEventType.RepeatPress:
@@ -77,7 +87,7 @@ public sealed class RecentAgentCommand : PluginDynamicCommand
     {
         if (this.armed is not null) return Faces.Glyph("?", imageSize, new BitmapColor(200, 30, 30));
         if (!this.Board.Online) return Faces.Ring(KeyState.Offline, imageSize);
-        return Faces.Ring(this.Current?.State ?? KeyState.None, imageSize);
+        return Faces.Ring(this.Current?.Chat.State ?? KeyState.None, imageSize);
     }
 
     protected override string GetCommandDisplayName(string actionParameter, PluginImageSize imageSize)
@@ -93,28 +103,28 @@ public sealed class RecentAgentCommand : PluginDynamicCommand
             this.Disarm();
             _ = this.ArchiveAsync(target);
         }
-        else if (this.Board.At(this.slot - 1) is { } session)
+        else if (this.Board.ChatAt(this.slot - 1) is { } chat)
         {
-            Opener.Open(Links.OpenAgent(session.Id));
+            Opener.Open(Links.OpenAgent(chat.Chat.Id));
         }
     }
 
-    private async Task ArchiveAsync(Session target)
+    private async Task ArchiveAsync(RankedChat target)
     {
         try
         {
-            if (await this.owner.Actions.ArchiveAsync(target.Id, CancellationToken.None))
+            if (await this.owner.Actions.ArchiveAsync(target.Session.Id, CancellationToken.None))
             {
-                this.Log.Info("archived an agent from a Recent agent key");
+                this.Log.Info("archived a session from a Recent chat key");
             }
         }
         catch (Exception e)
         {
-            this.Log.Error($"could not archive from a Recent agent key: {e.Message}");
+            this.Log.Error($"could not archive from a Recent chat key: {e.Message}");
         }
     }
 
-    private void Arm(Session target)
+    private void Arm(RankedChat target)
     {
         this.armTimer?.Cancel();
         this.armed = target;

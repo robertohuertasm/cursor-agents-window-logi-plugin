@@ -17,7 +17,11 @@ board.Changed += () =>
     var rank = 1;
     foreach (var a in board.Ranked)
     {
-        Console.WriteLine($"  #{rank++} {a.Id[..8]} {a.WorkspaceName,-24} {a.State}");
+        Console.WriteLine($"  #{rank++} {a.Id[..8]} {a.WorkspaceName,-24} {a.State} ({a.Chats.Count - 1} side chats)");
+        foreach (var c in a.Chats.Skip(1))
+        {
+            Console.WriteLine($"      side {c.Id[..8]} {c.State}");
+        }
     }
 };
 await board.RunAsync(cts.Token);

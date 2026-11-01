@@ -4,24 +4,28 @@ using CursorAgents;
 
 // A Dynamic Folder with two levels, like the VS Code plugin's.
 //
-// Folders level: the host's own back key (top left, closes the folder), New, then one key
-// per workspace folder, as the Agents window groups agents. A press opens the folder's
-// agents; a folder with a single agent opens that agent directly.
+// Sessions level: the host's own back key (top left, closes the folder), New, then one
+// key per main agent, with a badge when it has side chats. A short press opens the agent;
+// a long press opens its menu.
 //
-// Agents level: Back (to folders), then the folder's agents. A press opens an agent; a long
-// press asks "Archive?" and a second press within a few seconds archives it, because the
-// Keypad has no undo and the key vanishes at once.
-public sealed class AgentsFolder : PluginDynamicFolder
+// Session menu: Back (to sessions), New chat (a side chat of this agent), Archive (the
+// agent, which also hides its side chats), then the main chat and its side chats. A press
+// on a chat opens it; a long press on the main chat archives the session. Side chats cannot
+// be archived from the Keypad, because opening one selects its parent, so a long press just
+// opens them. Archive actions ask for a second press within a few seconds.
+public sealed class SessionsFolder : PluginDynamicFolder
 {
     private const string Back = "back";
     private const string New = "new";
-    private const string WorkspacePrefix = "w:";
-    private const string AgentPrefix = "a:";
+    private const string NewChat = "newchat";
+    private const string Archive = "archive";
+    private const string SessionPrefix = "s:";
+    private const string ChatPrefix = "c:";
     private static readonly TimeSpan ConfirmWindow = TimeSpan.FromSeconds(3);
 
-    // Folder key names carry what the key shows (state, count, a short hash of the title),
-    // so any visible change renames the key and the host fetches a fresh face and label
-    // instead of reusing cached ones.
+    // Key names carry what the key shows (state, chat count, a short hash of the title), so
+    // any visible change renames the key and the host fetches a fresh face and label instead
+    // of reusing cached ones.
     private const char StateSeparator = '|';
 
     // Armed keys get this in their name, because the host only reliably redraws a key when its name changes.
@@ -30,16 +34,18 @@ public sealed class AgentsFolder : PluginDynamicFolder
     // How a profile addresses this folder's own key; PluginDynamicFolder has no ButtonImageChanged.
     private const string FolderActionName = "#DynamicFolder";
 
-    private string? openWorkspace;
+    private string? openSession;
     private bool longPressHandled;
     private string[] shownNames = [];
+
+    // The key waiting for a confirming press: Archive, or a main chat id after a long press.
     private string? armed;
     private CancellationTokenSource? armTimer;
 
-    public AgentsFolder()
+    public SessionsFolder()
     {
         this.DisplayName = "Agents window";
-        this.Description = "Browse Cursor Agents window agents by folder";
+        this.Description = "Browse Cursor Agents window agents and their side chats";
         this.GroupName = "Agents window";
     }
 
@@ -60,7 +66,7 @@ public sealed class AgentsFolder : PluginDynamicFolder
     }
 
     // The host's own back key closes the folder without telling RunCommand, so the level
-    // is reset whenever the folder opens or closes.
+    // is reset whenever the folder opens or closes. Otherwise it reopens on the last menu.
     public override bool Activate()
     {
         this.ResetLevel();
@@ -85,22 +91,24 @@ public sealed class AgentsFolder : PluginDynamicFolder
 
     public override IEnumerable<string> GetButtonPressActionNames(DeviceType deviceType)
     {
-        if (this.openWorkspace is { } key && this.Board.FindWorkspace(key) is { } workspace)
+        if (this.openSession is { } id && this.Board.Find(id) is { } session)
         {
             yield return this.CreateCommandName(Back);
-            foreach (var s in workspace.Sessions)
+            yield return this.CreateCommandName(NewChat);
+            yield return this.CreateCommandName(this.armed == Archive ? Archive + ArmedMarker : Archive);
+            foreach (var chat in session.Chats)
             {
-                var marker = this.armed == s.Id ? ArmedMarker.ToString() : "";
-                yield return this.CreateCommandName($"{AgentPrefix}{s.State}{TitleTag(s.Title)}{marker}{StateSeparator}{s.Id}");
+                var marker = this.armed == chat.Id ? ArmedMarker.ToString() : "";
+                yield return this.CreateCommandName($"{ChatPrefix}{chat.State}{TitleTag(chat.Title)}{marker}{StateSeparator}{chat.Id}");
             }
             yield break;
         }
 
         // Renamed when Cursor goes offline so the host redraws it as "Start Cursor".
         yield return this.CreateCommandName(this.Board.Online ? New : New + "-offline");
-        foreach (var w in this.Board.Workspaces)
+        foreach (var s in this.Board.Ranked)
         {
-            yield return this.CreateCommandName($"{WorkspacePrefix}{w.State}{w.Sessions.Count}{TitleTag(w.Name)}{StateSeparator}{w.Key}");
+            yield return this.CreateCommandName($"{SessionPrefix}{s.State}{s.Chats.Count}{TitleTag(s.Title)}{StateSeparator}{s.Id}");
         }
     }
 
@@ -108,14 +116,16 @@ public sealed class AgentsFolder : PluginDynamicFolder
     {
         if (this.IsArmed(actionParameter)) return "Archive?";
         if (actionParameter == Back) return "Back";
+        if (actionParameter == NewChat) return "New chat";
         if (actionParameter.StartsWith(New, StringComparison.Ordinal)) return Faces.NewLabel(this.Board.Online);
-        if (actionParameter.StartsWith(WorkspacePrefix, StringComparison.Ordinal))
+        if (actionParameter.StartsWith(Archive, StringComparison.Ordinal)) return "Archive";
+        if (actionParameter.StartsWith(SessionPrefix, StringComparison.Ordinal))
         {
-            return KeyFace.Label(this.Board.FindWorkspace(Payload(actionParameter, WorkspacePrefix))?.Name);
+            return KeyFace.Label(this.Board.Find(Id(actionParameter, SessionPrefix))?.Title);
         }
-        if (actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal))
+        if (actionParameter.StartsWith(ChatPrefix, StringComparison.Ordinal))
         {
-            return KeyFace.Label(this.Board.Find(Payload(actionParameter, AgentPrefix))?.Title);
+            return KeyFace.Label(this.Board.FindChat(Id(actionParameter, ChatPrefix))?.Chat.Title);
         }
         return KeyFace.Blank;
     }
@@ -124,44 +134,31 @@ public sealed class AgentsFolder : PluginDynamicFolder
     {
         if (this.IsArmed(actionParameter)) return Faces.Glyph("?", imageSize, new BitmapColor(200, 30, 30));
         if (actionParameter == Back) return Faces.Glyph("‹", imageSize);
+        if (actionParameter == NewChat) return Faces.Glyph("+", imageSize);
         if (actionParameter.StartsWith(New, StringComparison.Ordinal)) return Faces.NewGlyph(this.Board.Online, imageSize);
-        if (actionParameter.StartsWith(WorkspacePrefix, StringComparison.Ordinal))
+        if (actionParameter.StartsWith(Archive, StringComparison.Ordinal)) return Faces.Glyph("✓", imageSize);
+        if (actionParameter.StartsWith(SessionPrefix, StringComparison.Ordinal))
         {
-            var w = this.Board.FindWorkspace(Payload(actionParameter, WorkspacePrefix));
-            return Faces.Ring(w?.State ?? KeyState.None, imageSize, w?.Sessions.Count ?? 1);
+            var session = this.Board.Find(Id(actionParameter, SessionPrefix));
+            return Faces.Ring(session?.State ?? KeyState.None, imageSize, session?.Chats.Count ?? 1);
         }
-        if (actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal))
+        if (actionParameter.StartsWith(ChatPrefix, StringComparison.Ordinal))
         {
-            return Faces.Ring(this.Board.Find(Payload(actionParameter, AgentPrefix))?.State ?? KeyState.None, imageSize);
+            return Faces.Ring(this.Board.FindChat(Id(actionParameter, ChatPrefix))?.Chat.State ?? KeyState.None, imageSize);
         }
         return Faces.Ring(KeyState.None, imageSize);
     }
 
-    // Agent keys handle their own events so a hold can archive: a short press acts on
-    // Release, a long press on LongPress. Other keys keep the default handling.
+    // Session and chat keys act on Release, so a hold can do something other than a tap,
+    // and so a press that opens a menu does not hand its Release to the new key under the
+    // finger. Other keys keep the default handling, which calls RunCommand.
     public override bool ProcessButtonEvent2(string actionParameter, DeviceButtonEvent2 buttonEvent)
     {
-        // Folder and agent keys act on Release. Opening a folder changes the keys under the finger,
-        // so a Press-time action would hand the Release of the same press to the new key below it.
-        var isFolder = actionParameter.StartsWith(WorkspacePrefix, StringComparison.Ordinal);
-        if (!isFolder && !actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal))
+        var isSession = actionParameter.StartsWith(SessionPrefix, StringComparison.Ordinal);
+        var isChat = actionParameter.StartsWith(ChatPrefix, StringComparison.Ordinal);
+        if (!isSession && !isChat)
         {
             return base.ProcessButtonEvent2(actionParameter, buttonEvent);
-        }
-
-        if (isFolder)
-        {
-            switch (buttonEvent.EventType)
-            {
-                case DeviceButtonEventType.Press:
-                case DeviceButtonEventType.RepeatPress:
-                    return true;
-                case DeviceButtonEventType.Release:
-                    this.Tap(actionParameter);
-                    return true;
-                default:
-                    return false;
-            }
         }
 
         switch (buttonEvent.EventType)
@@ -171,9 +168,21 @@ public sealed class AgentsFolder : PluginDynamicFolder
                 return true;
             case DeviceButtonEventType.LongPress:
                 this.longPressHandled = true;
-                if (this.armed is null && this.Board.Find(Payload(actionParameter, AgentPrefix)) is { } held)
+                if (isSession)
                 {
-                    this.Arm(held.Id);
+                    this.OpenMenu(Id(actionParameter, SessionPrefix));
+                }
+                else if (this.Board.FindChat(Id(actionParameter, ChatPrefix)) is { } held)
+                {
+                    if (held.Chat.CanArchive)
+                    {
+                        this.Arm(held.Chat.Id);
+                    }
+                    else
+                    {
+                        this.Plugin.Log.Info("long press on a side chat, which the Keypad cannot archive on its own; opening it");
+                        Opener.Open(Links.OpenAgent(held.Chat.Id));
+                    }
                 }
                 return true;
             case DeviceButtonEventType.RepeatPress:
@@ -203,30 +212,53 @@ public sealed class AgentsFolder : PluginDynamicFolder
         {
             this.ResetLevel(force: true);
         }
+        else if (actionParameter == NewChat && this.openSession is { } session)
+        {
+            _ = this.NewChatAsync(session);
+        }
         else if (actionParameter.StartsWith(New, StringComparison.Ordinal))
         {
-            if (this.Board.Online) _ = this.NewAsync();
+            if (this.Board.Online) _ = this.NewAgentAsync();
             else Opener.Open(Links.AgentsWindow);
         }
-        else if (actionParameter.StartsWith(WorkspacePrefix, StringComparison.Ordinal) && this.Board.FindWorkspace(Payload(actionParameter, WorkspacePrefix)) is { } workspace)
+        else if (actionParameter.StartsWith(Archive, StringComparison.Ordinal) && this.openSession is { } toArchive)
         {
-            this.OpenLevel(workspace.Key);
-        }
-        else if (actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal) && this.Board.Find(Payload(actionParameter, AgentPrefix)) is { } session)
-        {
-            if (this.armed == session.Id)
+            if (this.armed == Archive)
             {
                 this.Disarm();
-                _ = this.ArchiveAsync(session.Id);
+                _ = this.ArchiveAsync(toArchive);
             }
             else
             {
-                Opener.Open(Links.OpenAgent(session.Id));
+                this.Arm(Archive);
+            }
+        }
+        else if (actionParameter.StartsWith(SessionPrefix, StringComparison.Ordinal))
+        {
+            Opener.Open(Links.OpenAgent(Id(actionParameter, SessionPrefix)));
+        }
+        else if (actionParameter.StartsWith(ChatPrefix, StringComparison.Ordinal) && this.Board.FindChat(Id(actionParameter, ChatPrefix)) is { } found)
+        {
+            if (this.armed == found.Chat.Id)
+            {
+                this.Disarm();
+                _ = this.ArchiveAsync(found.Session.Id);
+            }
+            else
+            {
+                Opener.Open(Links.OpenAgent(found.Chat.Id));
             }
         }
     }
 
-    private async Task NewAsync()
+    private void OpenMenu(string sessionId)
+    {
+        this.Disarm();
+        this.openSession = sessionId;
+        this.RefreshNames();
+    }
+
+    private async Task NewAgentAsync()
     {
         try
         {
@@ -238,26 +270,35 @@ public sealed class AgentsFolder : PluginDynamicFolder
         }
     }
 
-    private async Task ArchiveAsync(string id)
+    private async Task NewChatAsync(string sessionId)
     {
         try
         {
-            if (await this.Owner.Actions.ArchiveAsync(id, CancellationToken.None))
+            if (await this.Owner.Actions.NewSideChatAsync(sessionId, CancellationToken.None))
             {
-                this.Plugin.Log.Info("archived an agent from the folder");
+                this.Plugin.Log.Info("asked Cursor for a new side chat from the Keypad");
             }
         }
         catch (Exception e)
         {
-            this.Plugin.Log.Error($"could not archive an agent: {e.Message}");
+            this.Plugin.Log.Error($"could not create a side chat: {e.Message}");
         }
     }
 
-    private void OpenLevel(string workspaceKey)
+    private async Task ArchiveAsync(string sessionId)
     {
-        this.Disarm();
-        this.openWorkspace = workspaceKey;
-        this.RefreshNames();
+        try
+        {
+            if (await this.Owner.Actions.ArchiveAsync(sessionId, CancellationToken.None))
+            {
+                this.Plugin.Log.Info("archived a session from the Keypad");
+                this.ResetLevel(force: true);
+            }
+        }
+        catch (Exception e)
+        {
+            this.Plugin.Log.Error($"could not archive a session: {e.Message}");
+        }
     }
 
     private void Arm(string id)
@@ -281,8 +322,8 @@ public sealed class AgentsFolder : PluginDynamicFolder
     }
 
     private bool IsArmed(string actionParameter) =>
-        this.armed is { } id && actionParameter.StartsWith(AgentPrefix, StringComparison.Ordinal)
-        && actionParameter.Contains(ArmedMarker) && Payload(actionParameter, AgentPrefix) == id;
+        this.armed is { } id && actionParameter.Contains(ArmedMarker) &&
+        (id == Archive ? actionParameter.StartsWith(Archive, StringComparison.Ordinal) : Id(actionParameter, ChatPrefix) == id);
 
     private void RefreshNames()
     {
@@ -309,8 +350,7 @@ public sealed class AgentsFolder : PluginDynamicFolder
         return "t" + hash.ToString("x8");
     }
 
-    // Everything after the first separator, so workspace paths may contain any character.
-    private static string Payload(string actionParameter, string prefix)
+    private static string Id(string actionParameter, string prefix)
     {
         var rest = actionParameter[prefix.Length..];
         var separator = rest.IndexOf(StateSeparator);
@@ -320,8 +360,8 @@ public sealed class AgentsFolder : PluginDynamicFolder
     private void ResetLevel(bool force = false)
     {
         this.Disarm();
-        if (this.openWorkspace is null && !force) return;
-        this.openWorkspace = null;
+        if (this.openSession is null && !force) return;
+        this.openSession = null;
         this.RefreshNames();
     }
 
@@ -337,8 +377,8 @@ public sealed class AgentsFolder : PluginDynamicFolder
             this.Plugin.Log.Error(e, "could not redraw the Cursor agents folder key");
         }
 
-        // A folder whose last agent was archived closes its level.
-        if (this.openWorkspace is { } open && this.Board.FindWorkspace(open) is null)
+        // A session archived elsewhere closes its menu.
+        if (this.openSession is { } open && this.Board.Find(open) is null)
         {
             this.ResetLevel();
             return;

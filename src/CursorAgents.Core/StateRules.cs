@@ -53,16 +53,38 @@ public static class StateRules
         || status is not (null or "completed" or "none")
         || now - DateTimeOffset.FromUnixTimeMilliseconds(lastUpdatedAt) <= ToolWindow;
 
-    public static Session ToSession(SessionRow row, DateTimeOffset now)
+    // Groups main agents with their side chats. Side chats whose parent is archived or not
+    // visible are dropped, as Cursor hides them too, even though their own isArchived is 0.
+    public static IReadOnlyList<Session> BuildSessions(IEnumerable<SessionRow> rows, DateTimeOffset now)
     {
-        var path = row.WorkspacePath?.TrimEnd('/', '\\');
-        var name = string.IsNullOrEmpty(path) ? "No folder" : Path.GetFileName(path.Replace('\\', '/'));
-        return new Session(
-            row.Id,
-            string.IsNullOrWhiteSpace(row.Name) ? name : row.Name.Trim(),
-            path ?? "",
-            name,
-            Infer(row, now),
-            DateTimeOffset.FromUnixTimeMilliseconds(row.LastUpdatedAt));
+        var visible = rows.Where(IsVisible).ToList();
+        var sides = visible
+            .Where(r => r.ParentId is not null)
+            .GroupBy(r => r.ParentId!)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.LastUpdatedAt).ThenBy(r => r.Id, StringComparer.Ordinal).ToList());
+        var sessions = new List<Session>();
+        foreach (var main in visible.Where(r => r.ParentId is null))
+        {
+            var folder = FolderName(main.WorkspacePath);
+            var title = string.IsNullOrWhiteSpace(main.Name) ? folder : main.Name.Trim();
+            var chats = new List<Chat> { new(main.Id, title, Infer(main, now), IsMain: true) };
+            var updated = main.LastUpdatedAt;
+            if (sides.TryGetValue(main.Id, out var children))
+            {
+                foreach (var side in children)
+                {
+                    chats.Add(new Chat(side.Id, string.IsNullOrWhiteSpace(side.Name) ? "Side chat" : side.Name.Trim(), Infer(side, now), IsMain: false));
+                    updated = Math.Max(updated, side.LastUpdatedAt);
+                }
+            }
+            sessions.Add(new Session(main.Id, title, folder, Status.MostUrgent(chats.Select(c => c.State)), DateTimeOffset.FromUnixTimeMilliseconds(updated), chats));
+        }
+        return sessions;
+    }
+
+    private static string FolderName(string? workspacePath)
+    {
+        var path = workspacePath?.TrimEnd('/', '\\');
+        return string.IsNullOrEmpty(path) ? "No folder" : Path.GetFileName(path.Replace('\\', '/'));
     }
 }

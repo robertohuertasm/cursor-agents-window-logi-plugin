@@ -10,9 +10,9 @@ Drag these onto keys in Logi Options+ (group **Cursor Agents Window**):
 
 | Action | What it does |
 |---|---|
-| **Recent agent 1…9** | The Nth agent across all folders: waiting for input first, then finished but unread, then working, then idle, most recent first within each. Press opens it in the Agents window. A long press asks **Archive?** and a press within 3 seconds archives it. |
+| **Recent chat 1…9** | The Nth chat across all agents, side chats included, so an agent with several active side chats takes several keys: waiting for input first, then finished but unread, then working, then idle. Press opens it. A long press on a main chat asks **Archive?** and a press within 3 seconds archives the agent (Cursor then hides its side chats). A long press on a side chat just opens it. |
 | **New agent** | Brings up the Agents window and presses its New Agent shortcut (Cmd+N). While Cursor is not running the key reads **Start Cursor** (▶) and a press starts it. |
-| **Agents window** (folder) | **New** and one key per project folder, as the Agents window groups agents, with a badge for the number of agents. A press opens the folder's agents. Inside, **Back**, then one key per agent: a press opens it, a long press asks **Archive?**. |
+| **Agents window** (folder) | **New**, then one key per agent, with a white badge for the number of chats when it has side chats. A press opens the agent. A long press opens its menu: **Back**, **New chat** (a side chat of that agent, Cmd+Shift+S), **Archive** (the agent and, with it, its side chats), and one key per chat, main chat first. In the menu, a press opens a chat and a long press on the main chat archives the agent. Archiving asks for a second press within 3 seconds. |
 
 An agent with no name yet (its first message has not been sent) shows its folder's name, since Cursor sets the name with the first message.
 
@@ -20,9 +20,9 @@ Key colors: red waiting for input, amber working, blue finished but not looked a
 
 ## How it works
 
-- **State:** Cursor has no local API for agent sessions. Once a second, the plugin copies Cursor's global `state.vscdb` and its WAL (`~/Library/Application Support/Cursor/User/globalStorage/` on macOS) to a temp folder, only if they changed, and reads the copy. Agents come from the `composerHeaders` table. Waiting is `hasBlockingPendingActions` (command approvals) or an open `ask_question` card; unread is `hasUnreadMessages`; working is an unfinished `composerData` status while the agent's messages keep changing (Cursor leaves `status: aborted` behind when an agent is stopped, so a status alone is not enough). It never writes to Cursor's storage and never reads message text.
+- **State:** Cursor has no local API for agent sessions. Once a second, the plugin copies Cursor's global `state.vscdb` and its WAL (`~/Library/Application Support/Cursor/User/globalStorage/` on macOS) to a temp folder, only if they changed, and reads the copy. Agents and their side chats come from the `composerHeaders` table; a side chat (`subagentTypeName = 'side-chat'`) names its parent in `subagentInfo.parentComposerId`, and side chats of an archived agent are hidden, as Cursor hides them. Waiting is `hasBlockingPendingActions` (command approvals) or an open `ask_question` card; unread is `hasUnreadMessages`; working is an unfinished `composerData` status while the agent's messages keep changing (Cursor leaves `status: aborted` behind when an agent is stopped, so a status alone is not enough). It never writes to Cursor's storage and never reads message text.
 - **Focus:** a press opens `cursor://anysphere.cursor-deeplink/agent?id=<composerId>`, which brings up the Agents window on that agent.
-- **New and Archive:** Cursor has no link for either, so the plugin uses the Agents window's own shortcuts: Cmd+N, and Cmd+Shift+E on the selected agent. Before archiving it opens the agent, waits until Cursor's database reports it selected and Cursor is frontmost, and checks both again right before sending the keys.
+- **New, New chat and Archive:** Cursor has no link for these, so the plugin uses the Agents window's own shortcuts: Cmd+N, Cmd+Shift+S (new side chat of the selected agent), and Cmd+Shift+E (archive the selected agent). Before New chat or Archive it opens the agent, waits until Cursor's database reports it selected and Cursor is frontmost, and checks both again right before sending the keys.
 
 Research notes and decisions live in [robertohuertasm/agent-skills, `labs/projects/agent-monitoring`](https://github.com/robertohuertasm/agent-skills/tree/main/labs/projects/agent-monitoring): `research/cursor-agent-mode.md` and decision 0003.
 
