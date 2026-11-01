@@ -2,7 +2,7 @@ namespace CursorAgents;
 
 // Turns Cursor's stored fields into a key state. Cursor has no single "running" field, so
 // these rules come from sampling the database while agents ran, waited, and were stopped
-// (agent-skills labs/projects/agent-monitoring/research/cursor-agent-mode.md, 2026-10-31).
+// (Cursor 3.27, 2026-10-31).
 public static class StateRules
 {
     // Tools that stop the turn until the user answers a card.
