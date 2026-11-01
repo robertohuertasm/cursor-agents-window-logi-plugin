@@ -1,8 +1,15 @@
 # Cursor Agents window Logi plugin
 
-A Logitech MX Creative Keypad plugin that shows Cursor Agents window agents and their state on the keys, and opens an agent with a press. It is the Cursor counterpart of [vscode-agents-window-logi-plugin](https://github.com/robertohuertasm/vscode-agents-window-logi-plugin) and uses the same key colors.
+Live status of your Cursor Agents window agents on the Logitech MX Creative Keypad. Press a key to jump to one. A Logi Options+ plugin built on the Logi Actions SDK, with keys for new agents, side chats, and the Agents window's layout shortcuts. It is the Cursor counterpart of [vscode-agents-window-logi-plugin](https://github.com/robertohuertasm/vscode-agents-window-logi-plugin) and uses the same key colors.
 
 Status: 0.1.0, first working version. Tested on the Keypad on macOS. Windows paths are written but untested.
+
+<p align="center">
+  <img src="docs/images/keypad.png" width="420"
+   alt="Nine Keypad keys: one waiting for input, working ones, an unread one, idle ones and empty slots">
+</p>
+
+> The images are diagrams drawn from the plugin's own colors and icons, not photos.
 
 ## Install
 
@@ -27,6 +34,12 @@ Drag these onto keys in Logi Options+ (group **Cursor Agents Window**):
 An agent with no name yet (its first message has not been sent) shows its folder's name, since Cursor sets the name with the first message.
 
 Keys show Cursor's logo in black on a disc colored by state, with the VS Code plugin's colors: red waiting for input, amber working, blue finished but not looked at yet, green idle, dark red Cursor not running, dark grey empty.
+
+<img src="docs/images/tile-states.png" width="700" alt="Key faces for each state">
+
+<img src="docs/images/folder.png" width="800" alt="The Agents window folder: one key per agent, and the agent menu a long press opens">
+
+<img src="docs/images/shortcuts.png" width="640" alt="The shortcuts folder and the keys each shortcut sends">
 
 ## How it works
 
